@@ -11,23 +11,27 @@ brain = Brain()
 con = Controller(PRIMARY)
 
 # Define Ports
-leftMotorA = Motor(Ports.PORT1, GearSetting.RATIO_6_1, False)
-rightMotorA = Motor(Ports.PORT2, GearSetting.RATIO_6_1, True)
-rightMotorB = Motor(Ports.PORT3, GearSetting.RATIO_6_1, True)
-leftMotorB = Motor(Ports.PORT4, GearSetting.RATIO_6_1, False)
-intakeMotor = Motor(Ports.PORT5, GearSetting.RATIO_18_1, True)
-inertialSens = Inertial(Ports.PORT6)
-armMotor = Motor(Ports.PORT7, GearSetting.RATIO_6_1, False)
-cataMotor = Motor(Ports.PORT8, GearSetting.RATIO_36_1, True)
-liftMotor = Motor(Ports.PORT9, GearSetting.RATIO_36_1, False)
+inertialSens = Inertial(Ports.PORT9)
+leftMotorA = Motor(Ports.PORT11, GearSetting.RATIO_6_1, True)
+rightMotorA = Motor(Ports.PORT12, GearSetting.RATIO_6_1, False)
+leftMotorB = Motor(Ports.PORT13, GearSetting.RATIO_6_1, True)
+rightMotorB = Motor(Ports.PORT14, GearSetting.RATIO_6_1, False)
+leftMotorC = Motor(Ports.PORT15, GearSetting.RATIO_6_1, True)
+rightMotorC = Motor(Ports.PORT16, GearSetting.RATIO_6_1, False)
+intakeMotor = Motor(Ports.PORT17, GearSetting.RATIO_18_1, True)
+cataMotor = Motor(Ports.PORT18, GearSetting.RATIO_36_1, True)
+threeWireExtender = Triport(Ports.PORT20)
 
 # Create motor groups
-leftMotors = MotorGroup(leftMotorA, leftMotorB)
-rightMotors = MotorGroup(rightMotorA, rightMotorB)
+leftMotors = MotorGroup(leftMotorA, leftMotorB, leftMotorC)
+rightMotors = MotorGroup(rightMotorA, rightMotorB, rightMotorC)
 
 # 3 wire ports
-wingsPistons = DigitalOut(brain.three_wire_port.g)
-underglow = DigitalOut(brain.three_wire_port.h)
+leftWingPiston = DigitalOut(brain.three_wire_port.f)
+rightWingPiston = DigitalOut(brain.three_wire_port.h)
+blockerPiston = DigitalOut(brain.three_wire_port.g)
+endgamePiston = DigitalOut(brain.three_wire_port.e)
+cataLimit = Limit(threeWireExtender.a)
 
 # Calibrate sensors
 inertialSens.calibrate()
@@ -111,7 +115,6 @@ def screen_update():
         button(0, 190, 240, 40, ("Intake: " + str(intakeMotor.temperature())))# left 5
 
         button(240, 30, 240, 40, ("Catapult: " + str(cataMotor.temperature()))) # right 1
-        button(240, 70, 240, 40, ("Arm: " + str(armMotor.temperature())))# right 2
         # button(240, 110, 240, 40, "None: 55*C")# right 3
         # button(240, 150, 240, 40, "None: 55*C")# right 4
         # button(240, 190, 240, 40, "motor: 55*C")# right 5
@@ -301,24 +304,24 @@ def auton(mode):
         armMotor.stop() # arm extended    
     # opponent goal side (done, 12 secs)
     elif mode == "opponent":
-        armMotor.spin(REVERSE, 25, PERCENT) # extend arm
-        wait(1, SECONDS)
-        armMotor.stop() # arm extended
+        # armMotor.spin(REVERSE, 25, PERCENT) # extend arm
+        # wait(1, SECONDS)
+        # armMotor.stop() # arm extended
         leftMotors.spin(FORWARD)
         rightMotors.spin(REVERSE) # turn to grab triball
         wait(1500, MSEC)
         leftMotors.stop()
         rightMotors.stop()
         forward(400) # backup to pull triball out
-        armMotor.spin(FORWARD, 40, PERCENT)
-        turn(-50)
-        armMotor.stop()
+        # armMotor.spin(FORWARD, 40, PERCENT)
+        # turn(-50)
+        # armMotor.stop()
         forward(-470, tolerance=20)
         turn(-70, tolerance=2)
         forward(-480, tolerance=10)
-        armMotor.spin(REVERSE, 30, PERCENT)
-        wait(1, SECONDS)
-        armMotor.stop()   
+        # armMotor.spin(REVERSE, 30, PERCENT)
+        # wait(1, SECONDS)
+        # armMotor.stop()   
 
     # team side (preload in goal, triballs A & B in goal, triball C in goal?, touch elevation)
     # preload in goal (starting 45 to goal)
@@ -340,10 +343,10 @@ def auton(mode):
     elif mode == "skills":
         forward(250, tolerance=20)
         turn(-70, tolerance = 5)
-        armMotor.spin(REVERSE, 40, PERCENT)
+        # armMotor.spin(REVERSE, 40, PERCENT)
         cataMotor.spin(FORWARD)
         wait(1, SECONDS)
-        armMotor.stop()
+        # armMotor.stop()
         wait(99, SECONDS)
         cataMotor.stop(HOLD)
 

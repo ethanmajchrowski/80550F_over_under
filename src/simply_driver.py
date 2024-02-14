@@ -28,15 +28,18 @@ blockerPiston = DigitalOut(brain.three_wire_port.g)
 endgamePiston = DigitalOut(brain.three_wire_port.e)
 cataLimit = Limit(threeWireExtender.a)
 
-headlightLED = DigitalOut(threeWireExtender.b)
-leftTurnLED = DigitalOut(threeWireExtender.c)
-rightTurnLED = DigitalOut(threeWireExtender.d)
+leftHeadlightLED = DigitalOut(threeWireExtender.b)
+rightHeadlightLED = DigitalOut(threeWireExtender.c)
 
 # Calibrate sensors
-inertialSens.calibrate()
-while inertialSens.is_calibrating():
-    wait(50, MSEC)
-brain.screen.clear_screen()
+# inertialSens.calibrate()
+
+# while inertialSens.is_calibrating():
+#     brain.screen.clear_screen()
+#     brain.screen.set_cursor(1,1)
+#     brain.screen.print(" Inertial Sensor Calibrating...")
+#     wait(50, MSEC)
+# brain.screen.clear_screen()
 
 # DRIVETRAIN
 drivetrain = SmartDrive(leftMotors, rightMotors, inertialSens, (2.75 * 3.14) * 25.4, (11 * 25.4), (10.5 * 25.4), MM, 0.75)
@@ -54,16 +57,11 @@ selected = None
 touch_areas = []
 screen_state = "main" # main, test, tools, thermals
 ledState = True
-cataState = False
 
 # CONFIG
-cataMotor.set_velocity(62, PERCENT)
+cataMotor.set_velocity(90, PERCENT) # default 62. # type: ignore
 cataMotor.set_max_torque(100, PERCENT)
 intakeMotor.set_velocity(100, PERCENT)
-headlightLED.set(True)
-
-leftTurnLED.set(True)
-rightTurnLED.set(True)
 
 def button(x, y, width, height, text = "", color = Color(Color.BLACK), text_color = Color(Color.WHITE), action = None): # usable size of brain is 480x240
     brain.screen.set_fill_color(color)
@@ -101,15 +99,6 @@ def touch_check():
             if action == "skip_comp_driver": 
                 selected = action
                 screen_state = "completed"
-            if action == "skip_comp_close_auton":
-                selected = action
-                screen_state = "completed"
-            if action == "skip_comp_far_auton":
-                selected = action
-                screen_state = "completed"
-            if action == "skip_comp_skills_auton":
-                selected = action
-                screen_state = "completed"
 
             if action == "tools": screen_state = action
             if action == "thermals": screen_state = action
@@ -136,9 +125,6 @@ def screen_update():
         button(0, 0, 100, 50, "Main", action = "main_menu", color = Color(82, 82, 82))
         button(0, 50, 100, 190, "Thermals", color = Color(194, 146, 2), action = "thermals")
         button(100, 50, 100, 190, "Driver", color = Color(82, 82, 82), action = "skip_comp_driver")
-        button(200, 50, 100, 190, "Close", color = Color(82, 82, 82), action = "skip_comp_close_auton")
-        button(300, 50, 100, 190, "Far", color = Color(82, 82, 82), action = "skip_comp_far_auton")
-        button(400, 50, 100, 190, "Skills", color = Color(82, 82, 82), action = "skip_comp_skills_auton")
     if screen_state == "thermals":
         button(0, 0, 100, 30, "Main", action = "main_menu", color = Color(82, 82, 82))
 
@@ -306,7 +292,7 @@ def auton():
         return
     elif selected == "skills":
         cataMotor.spin(FORWARD, 62, PERCENT) # catapult match loads
-        wait(30, SECONDS)
+        wait(34, SECONDS)
         # wait(5, SECONDS)
         while not cataLimit.pressing():
             cataMotor.spin(FORWARD, 62, PERCENT)
@@ -341,56 +327,30 @@ def auton():
         leftWingPiston.set(False)  
         rightWingPiston.set(False)
 
-    # elif selected == "close":
-    #     rightWingPiston.set(True)
-    #     wait(0.5, SECONDS)
-    #     drivetrain.turn_for(LEFT, 115, DEGREES, 10, PERCENT)
-    #     wait(0.5, SECONDS)
-    #     # while not cataLimit.pressing():
-    #     #     cataMotor.spin(FORWARD, 100, PERCENT)
-    #     cataMotor.spin(FORWARD, 100, PERCENT)
-    #     wait(0.7, SECONDS)
-    #     cataMotor.stop(HOLD)
-    #     rightWingPiston.set(False)
-    #     drivetrain.turn_to_heading(285, DEGREES)
-    #     drivetrain.drive_for(FORWARD, 450, MM)
-    #     drivetrain.turn_to_heading(270, DEGREES)
-    #     drivetrain.drive_for(FORWARD, 550, MM)
-
-    #     intakeMotor.spin(FORWARD, 100, PERCENT)
-    #     wait(1.5, SECONDS)
-    #     intakeMotor.stop()
-
-    #     wait(1, SECONDS)
-    #     drivetrain.stop(COAST)
-    #     rightWingPiston.set(False)
-    #     leftWingPiston.set(False)
-        
     elif selected == "close":
-        brain.timer.reset()
-        cataMotor.spin(FORWARD, 100)
+        rightWingPiston.set(True)
+        wait(0.5, SECONDS)
+        drivetrain.turn_for(LEFT, 115, DEGREES, 10, PERCENT)
+        wait(0.5, SECONDS)
         while not cataLimit.pressing():
-            pass
+            cataMotor.spin(FORWARD, 100, PERCENT)
+        cataMotor.spin(FORWARD, 100, PERCENT)
         wait(0.2, SECONDS)
-        cataMotor.spin(FORWARD, 40)
-        while not cataLimit.pressing():
-            pass
         cataMotor.stop(HOLD)
-        drivetrain.turn_for(RIGHT, 115, DEGREES, 10, PERCENT) # Turn right to setup to pull triball out of match load
-        rightWingPiston.set(True) # Lower wing to shove triball
-        wait(0.3, SECONDS) # Wait for wing to lower
-        drivetrain.turn_for(LEFT, 75, DEGREES, 10, PERCENT) # Turn to shove triball out of match load area
-        rightWingPiston.set(False) # Retract wing to not clip wall
-        wait(0.5, SECONDS) # Wait for wing retraction
-        drivetrain.drive_for(FORWARD, 270, MM) # 
-        drivetrain.turn_to_heading(30, DEGREES) # Turn to adjust for underpass
-        intakeMotor.spin(FORWARD, 100, PERCENT)
-        drivetrain.drive_for(FORWARD, 630, MM) #
-        drivetrain.drive_for(FORWARD, 20, MM, 10, PERCENT)
-        wait(3, SECONDS)
-        intakeMotor.stop() 
-        print("done at ", brain.timer.time(SECONDS), "s")
+        rightWingPiston.set(False)
+        drivetrain.turn_to_heading(285, DEGREES)
+        drivetrain.drive_for(FORWARD, 450, MM)
+        drivetrain.turn_to_heading(270, DEGREES)
+        drivetrain.drive_for(FORWARD, 550, MM)
 
+        intakeMotor.spin(FORWARD, 100, PERCENT)
+        wait(1.5, SECONDS)
+        intakeMotor.stop()
+
+        wait(1, SECONDS)
+        drivetrain.stop(COAST)
+        rightWingPiston.set(False)
+        leftWingPiston.set(False)
     if selected == "friendly":
         drivetrain.drive_for(FORWARD, 100, MM)
         rightWingPiston.set(True)
@@ -474,6 +434,13 @@ def lowerCata():
         if con.buttonDown.pressing(): break
     cataMotor.stop(HOLD)
 
+# Assign controller functions
+con.buttonR1.pressed(r1Pressed)
+con.buttonR2.pressed(r2Pressed)
+con.buttonA.pressed(toggleWings)
+con.buttonB.pressed(toggleBlocker)
+con.buttonRight.pressed(lowerCata)
+
 def thread_main():
     # def thread vars
     global intakeStatus, intakeDir    
@@ -491,33 +458,36 @@ def thread_main():
             endgamePiston.set(True)
         else:
             endgamePiston.set(False)
-
-        if selected != "skip_comp_driver":
-            if con.buttonDown.pressing(): 
-                cataMotor.spin(FORWARD)
-            else: 
-                cataMotor.stop(HOLD)
+        
+        if con.buttonDown.pressing(): 
+            cataMotor.spin(FORWARD)
+        else: 
+            cataMotor.stop(HOLD)
         
         sleep(5)
 
-def toggleCata():
-    print("toggle cata")
-    global cataState
-    cataState = not cataState
-    if cataState: cataMotor.spin(FORWARD, 90, PERCENT)
-    else: cataMotor.stop(HOLD)
+def printValues():
+    global gifState
+    gifState = False
+    # Display values and stuff on brain screen
+    # WHEN PRINTING ON BRAIN COMMENT OUT GIF THREAD OR ADD TEXT TO THREAD
+    while True:
+        pass
 
 def thread_driveControl():
     while True:
         # handle LED control if allowed
         if ledState:
-            headlightLED.set(True)
+            leftHeadlightLED.set(True)
+            rightHeadlightLED.set(True)
         else:
-            headlightLED.set(True)
+            leftHeadlightLED.set(False)
+            rightHeadlightLED.set(False)
 
         # Convert controller axis to voltage levels
-        turnVolts = con.axis2.position() * -0.12
-        forwardVolts = con.axis1.position() * -0.12 
+        if True:
+            turnVolts = con.axis2.position() * -0.12
+            forwardVolts = con.axis1.position() * -0.12 
 
         # Spin motors and combine controller axes
         leftMotorA.spin(REVERSE, forwardVolts + turnVolts, VOLT)
@@ -527,6 +497,7 @@ def thread_driveControl():
         rightMotorB.spin(FORWARD, forwardVolts - turnVolts, VOLT)
         rightMotorC.spin(FORWARD, forwardVolts - turnVolts, VOLT)
         sleep(5)    
+        # brain.screen.render()
 
 def gifThread():
     index = 1
@@ -552,26 +523,8 @@ def userControl():
     Thread(thread_main)
     Thread(thread_driveControl)
 
-startup()
-
-# Assign controller functions
-con.buttonR1.pressed(r1Pressed)
-con.buttonR2.pressed(r2Pressed)
-con.buttonA.pressed(toggleWings)
-con.buttonB.pressed(toggleBlocker)
-con.buttonRight.pressed(lowerCata)    
-
-if selected == "skip_comp_driver": # skip competition for testing
-    con.buttonDown.pressed(toggleCata)
-    userControl()
-elif selected == "skip_comp_close_auton":
-    selected = "close"
-    auton()
-elif selected == "skip_comp_far_auton":
-    selected = "friendly"
-    auton()
-elif selected == "skip_comp_skills_auton":
-    selected = "skills"
-    auton()
-
-comp = Competition(userControl, auton)
+# startup()
+# if selected == "skip_comp_driver": # skip competition for testing
+#     userControl()
+# comp = Competition(userControl, auton)
+userControl()
