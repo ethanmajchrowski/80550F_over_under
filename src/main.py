@@ -28,9 +28,9 @@ blockerPiston = DigitalOut(brain.three_wire_port.g)
 endgamePiston = DigitalOut(brain.three_wire_port.e)
 cataLimit = Limit(threeWireExtender.a)
 
-headlightLED = DigitalOut(threeWireExtender.b)
+headlightLED = DigitalOut(threeWireExtender.d)
 leftTurnLED = DigitalOut(threeWireExtender.c)
-rightTurnLED = DigitalOut(threeWireExtender.d)
+rightTurnLED = DigitalOut(threeWireExtender.b)
 
 # Calibrate sensors
 inertialSens.calibrate()
@@ -302,6 +302,9 @@ def turn(degrees, speed = 5, tolerance = 0.5, kP = 0.4):
     leftMotors.stop()
 
 def auton():    
+    headlightLED.set(False)
+    leftTurnLED.set(False)
+    rightTurnLED.set(False)
     if selected == "skip" or None:
         return
     elif selected == "skills":
@@ -356,11 +359,9 @@ def auton():
     #     drivetrain.drive_for(FORWARD, 450, MM)
     #     drivetrain.turn_to_heading(270, DEGREES)
     #     drivetrain.drive_for(FORWARD, 550, MM)
-
     #     intakeMotor.spin(FORWARD, 100, PERCENT)
     #     wait(1.5, SECONDS)
     #     intakeMotor.stop()
-
     #     wait(1, SECONDS)
     #     drivetrain.stop(COAST)
     #     rightWingPiston.set(False)
@@ -379,7 +380,7 @@ def auton():
         drivetrain.turn_for(RIGHT, 115, DEGREES, 10, PERCENT) # Turn right to setup to pull triball out of match load
         rightWingPiston.set(True) # Lower wing to shove triball
         wait(0.3, SECONDS) # Wait for wing to lower
-        drivetrain.turn_for(LEFT, 75, DEGREES, 10, PERCENT) # Turn to shove triball out of match load area
+        drivetrain.turn_for(LEFT, 75, DEGREES, 20, PERCENT) # Turn to shove triball out of match load area
         rightWingPiston.set(False) # Retract wing to not clip wall
         wait(0.5, SECONDS) # Wait for wing retraction
         drivetrain.drive_for(FORWARD, 270, MM) # 
@@ -388,7 +389,7 @@ def auton():
         drivetrain.drive_for(FORWARD, 630, MM) #
         drivetrain.drive_for(FORWARD, 20, MM, 10, PERCENT)
         wait(3, SECONDS)
-        intakeMotor.stop() 
+        intakeMotor.stop()
         print("done at ", brain.timer.time(SECONDS), "s")
 
     if selected == "friendly":
@@ -416,6 +417,10 @@ def auton():
         intakeMotor.stop()
         drivetrain.stop(COAST)
         leftWingPiston.set(False)
+
+    headlightLED.set(True)
+    leftTurnLED.set(True)
+    rightTurnLED.set(True)
 
 def inertValuesThread():
     timer = Timer()
@@ -458,11 +463,23 @@ def r1Pressed():
         intakeDir = "out"
 
 def toggleWings():
-    if rightWingPiston.value() == True:
+    if rightWingPiston.value() == True or leftWingPiston.value() == True:
         rightWingPiston.set(False)
         leftWingPiston.set(False)
     else:
         rightWingPiston.set(True)
+        leftWingPiston.set(True)
+
+def rightWing():
+    if rightWingPiston.value() == True:
+        rightWingPiston.set(False)
+    else:
+        rightWingPiston.set(True)
+
+def leftWing():
+    if leftWingPiston.value() == True:
+        leftWingPiston.set(False)
+    else:
         leftWingPiston.set(True)
 
 def toggleBlocker():
@@ -487,7 +504,7 @@ def thread_main():
         else:
             intakeMotor.stop()
 
-        if con.buttonY.pressing():
+        if con.buttonB.pressing():
             endgamePiston.set(True)
         else:
             endgamePiston.set(False)
@@ -508,12 +525,27 @@ def toggleCata():
     else: cataMotor.stop(HOLD)
 
 def thread_driveControl():
+    global ledState
     while True:
         # handle LED control if allowed
-        if ledState:
+        if ledState == True:
             headlightLED.set(True)
+            if con.axis1.position() > 10:
+                leftTurnLED.set(False)
+                rightTurnLED.set(True)
+            elif con.axis1.position() < -10:
+                rightTurnLED.set(False)
+                leftTurnLED.set(True)
+            else:
+                rightTurnLED.set(False)
+                leftTurnLED.set(False)
         else:
-            headlightLED.set(True)
+            headlightLED.set(False)
+            rightTurnLED.set(False)
+            leftTurnLED.set(False)
+
+        if con.buttonL1.pressing() and con.buttonL2.pressing():
+            ledState = not ledState
 
         # Convert controller axis to voltage levels
         turnVolts = con.axis2.position() * -0.12
@@ -552,17 +584,27 @@ def userControl():
     Thread(thread_main)
     Thread(thread_driveControl)
 
+headlightLED.set(True)
+leftTurnLED.set(True)
+rightTurnLED.set(True)
+wait(0.5, SECONDS)
+headlightLED.set(False)
+leftTurnLED.set(False)
+rightTurnLED.set(False)
+
 startup()
 
 # Assign controller functions
 con.buttonR1.pressed(r1Pressed)
 con.buttonR2.pressed(r2Pressed)
 con.buttonA.pressed(toggleWings)
-con.buttonB.pressed(toggleBlocker)
-con.buttonRight.pressed(lowerCata)    
+con.buttonX.pressed(toggleBlocker)
+con.buttonUp.pressed(lowerCata)
+con.buttonDown.pressed(toggleCata)
+con.buttonRight.pressed(rightWing)
+con.buttonLeft.pressed(leftWing)
 
 if selected == "skip_comp_driver": # skip competition for testing
-    con.buttonDown.pressed(toggleCata)
     userControl()
 elif selected == "skip_comp_close_auton":
     selected = "close"
