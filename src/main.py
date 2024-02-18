@@ -62,6 +62,9 @@ cataMotor.set_max_torque(100, PERCENT)
 intakeMotor.set_velocity(100, PERCENT)
 headlightLED.set(True)
 
+# CONTROLS
+BLOCKER_BUTTON = con.buttonB
+
 leftTurnLED.set(True)
 rightTurnLED.set(True)
 
@@ -308,8 +311,11 @@ def auton():
     if selected == "skip" or None:
         return
     elif selected == "skills":
-        cataMotor.spin(FORWARD, 62, PERCENT) # catapult match loads
-        wait(30, SECONDS)
+        headlightLED.set(True)
+        leftTurnLED.set(True)
+        rightTurnLED.set(True)
+        cataMotor.spin(FORWARD, 90, PERCENT) # catapult match loads
+        wait(34, SECONDS)
         # wait(5, SECONDS)
         while not cataLimit.pressing():
             cataMotor.spin(FORWARD, 62, PERCENT)
@@ -526,6 +532,7 @@ def toggleCata():
 
 def thread_driveControl():
     global ledState
+    hold = 100
     while True:
         # handle LED control if allowed
         if ledState == True:
@@ -545,7 +552,10 @@ def thread_driveControl():
             leftTurnLED.set(False)
 
         if con.buttonL1.pressing() and con.buttonL2.pressing():
-            ledState = not ledState
+            hold -= 1
+            if hold == 0: ledState = not ledState
+        else:
+            hold = 100
 
         # Convert controller axis to voltage levels
         turnVolts = con.axis2.position() * -0.12
