@@ -57,7 +57,7 @@ ledState = True
 cataState = False
 
 # CONFIG
-cataMotor.set_velocity(62, PERCENT)
+cataMotor.set_velocity(90, PERCENT)
 cataMotor.set_max_torque(100, PERCENT)
 intakeMotor.set_velocity(100, PERCENT)
 headlightLED.set(True)
@@ -386,9 +386,10 @@ def auton():
         drivetrain.turn_for(RIGHT, 115, DEGREES, 10, PERCENT) # Turn right to setup to pull triball out of match load
         rightWingPiston.set(True) # Lower wing to shove triball
         wait(0.3, SECONDS) # Wait for wing to lower
-        drivetrain.turn_for(LEFT, 75, DEGREES, 20, PERCENT) # Turn to shove triball out of match load area
+        drivetrain.turn_for(LEFT, 90, DEGREES, 20, PERCENT) # Turn to shove triball out of match load area
         rightWingPiston.set(False) # Retract wing to not clip wall
         wait(0.5, SECONDS) # Wait for wing retraction
+        drivetrain.turn_to_heading(50, DEGREES)
         drivetrain.drive_for(FORWARD, 270, MM) # 
         drivetrain.turn_to_heading(30, DEGREES) # Turn to adjust for underpass
         intakeMotor.spin(FORWARD, 100, PERCENT)
@@ -502,6 +503,7 @@ def thread_main():
     global intakeStatus, intakeDir    
     # thread loop
     while True:
+        print("limit switch: ", str(cataLimit.pressing()))
         if intakeStatus == True:
             if intakeDir == "in":
                 intakeMotor.spin(FORWARD)
@@ -514,12 +516,6 @@ def thread_main():
             endgamePiston.set(True)
         else:
             endgamePiston.set(False)
-
-        if selected != "skip_comp_driver":
-            if con.buttonDown.pressing(): 
-                cataMotor.spin(FORWARD)
-            else: 
-                cataMotor.stop(HOLD)
         
         sleep(5)
 
@@ -585,11 +581,6 @@ def gifThread():
             brain.screen.render()
 
 def userControl():
-    brain.screen.clear_screen()
-    brain.screen.set_cursor(1,1)
-    brain.screen.print("Driver Control Start")
-    wait(0.1, SECONDS)
-    
     Thread(gifThread)
     Thread(thread_main)
     Thread(thread_driveControl)
