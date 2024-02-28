@@ -1,4 +1,3 @@
-# Library imports
 from vex import *
 
 # Define generic
@@ -22,14 +21,14 @@ leftMotors = MotorGroup(leftMotorA, leftMotorB, leftMotorC)
 rightMotors = MotorGroup(rightMotorA, rightMotorB, rightMotorC)
 
 # 3 wire ports
-leftWingPiston = DigitalOut(brain.three_wire_port.f)
+leftWingPiston =  DigitalOut(brain.three_wire_port.f)
 rightWingPiston = DigitalOut(brain.three_wire_port.h)
-blockerPiston = DigitalOut(brain.three_wire_port.g)
-endgamePiston = DigitalOut(brain.three_wire_port.e)
-cataLimit = Limit(threeWireExtender.a)
+blockerPiston =   DigitalOut(brain.three_wire_port.g)
+endgamePiston =   DigitalOut(brain.three_wire_port.e)
 
+cataLimit =    Limit(threeWireExtender.a)
 headlightLED = DigitalOut(threeWireExtender.d)
-leftTurnLED = DigitalOut(threeWireExtender.c)
+leftTurnLED =  DigitalOut(threeWireExtender.c)
 rightTurnLED = DigitalOut(threeWireExtender.b)
 
 # DRIVETRAIN
@@ -50,14 +49,9 @@ screen_state = "main" # main, test, tools, thermals
 ledState = True
 cataState = False
 
-# CONFIG
-cataMotor.set_velocity(62, PERCENT)
+cataMotor.set_velocity(95, PERCENT)
 cataMotor.set_max_torque(100, PERCENT)
 intakeMotor.set_velocity(100, PERCENT)
-
-headlightLED.set(True)
-leftTurnLED.set(True)
-rightTurnLED.set(True)
 
 # define controller functions
 def r2Pressed():
@@ -105,7 +99,7 @@ def toggleBlocker():
 
 def lowerCata():
     while not cataLimit.pressing():
-        cataMotor.spin(FORWARD, 40)
+        cataMotor.spin(FORWARD, 80)
         if con.buttonDown.pressing(): break
     cataMotor.stop(HOLD)
 
@@ -126,22 +120,20 @@ def thread_main():
             endgamePiston.set(True)
         else:
             endgamePiston.set(False)
-
-        if selected != "skip_comp_driver":
-            if con.buttonDown.pressing(): 
-                cataMotor.spin(FORWARD)
-            else: 
-                cataMotor.stop(HOLD)
         
         sleep(5)
 
 def toggleCata():
-    print("toggle cata")
     global cataState
     cataState = not cataState
-    if cataState: cataMotor.spin(FORWARD, 90, PERCENT)
-    else: cataMotor.stop(HOLD)
 
+    if cataState:
+        cataMotor.spin(FORWARD)
+    else:
+        while not cataLimit.pressing():
+            cataMotor.spin(FORWARD, 60)
+        cataMotor.stop(HOLD)
+        
 def thread_driveControl():
     global ledState
     hold = 100
@@ -180,7 +172,7 @@ def thread_driveControl():
         rightMotorA.spin(FORWARD, forwardVolts - turnVolts, VOLT)
         rightMotorB.spin(FORWARD, forwardVolts - turnVolts, VOLT)
         rightMotorC.spin(FORWARD, forwardVolts - turnVolts, VOLT)
-        sleep(5)    
+        sleep(5)
 
 def gifThread():
     index = 1
@@ -197,11 +189,6 @@ def gifThread():
             brain.screen.render()
 
 def userControl():
-    brain.screen.clear_screen()
-    brain.screen.set_cursor(1,1)
-    brain.screen.print("Driver Control Start")
-    wait(0.1, SECONDS)
-    
     Thread(gifThread)
     Thread(thread_main)
     Thread(thread_driveControl)
