@@ -174,217 +174,93 @@ def startup():
         screen_update()
     wait(1, SECONDS)
 
-def forward(dist = 609.6, kP = 0.1, tolerance = 5, headingAdjust = True):
-    # wait(0.5, SECONDS)
-    dist *= -1
-    degrees = (dist * 1.125)
-    degrees /= (3/7)
-    initialHeading = inertialSens.heading()
-
-    leftMotorA.reset_position()
-    currentDegrees = leftMotorA.position()
-
-    while ((currentDegrees > (degrees + tolerance)) or (currentDegrees < (degrees - tolerance))):
-        currentDegrees = leftMotorA.position()
-
-        error = degrees - currentDegrees
-        speed = error * kP
-        if speed > 100: speed = 100
-
-        currentHeading = inertialSens.heading()
-        headingError = abs(initialHeading - currentHeading)
-        if headingError > 180:
-            headingError = -360 + headingError
-        # if initialHeading > 180:
-        #     if headingError > 180: headingError = 360 - headingError
-
-        motorAdjustment = headingError * kP * 10
-        if headingAdjust:
-            leftSpeed = speed - motorAdjustment
-            rightSpeed = speed + motorAdjustment
-        else:
-            leftSpeed = speed
-            rightSpeed = speed
-
-        brain.screen.clear_screen()
-        brain.screen.set_cursor(1,1)
-        brain.screen.print("initialHeading = ", str(int(initialHeading)))
-        brain.screen.next_row()
-        brain.screen.print("current heading = ", str(int(currentHeading)))
-        brain.screen.next_row()
-        brain.screen.print("heading error = ", str(int(headingError)))
-
-        brain.screen.next_row()
-        brain.screen.print("left/right speeds = ", str(int(leftSpeed)), str(int(rightSpeed)))
-        brain.screen.next_row()
-        brain.screen.print("distance error = ", str(int(error)))
-        brain.screen.render()
-
-        leftMotors.spin(FORWARD, leftSpeed, PERCENT)
-        rightMotors.spin(FORWARD, rightSpeed, PERCENT)
-
-    leftMotors.stop()
-    rightMotors.stop()
-
-def turn(degrees, speed = 5, tolerance = 0.5, kP = 0.4):
-    brain.screen.clear_screen()
-    brain.screen.set_cursor(2, 1)    
-    brain.screen.print("turn ", degrees)
-
-    initialHeading = inertialSens.heading()
-   
-    targetHeading = initialHeading + degrees # set intial value, can by any value
-
-    while (targetHeading > 360) or (targetHeading < 0): # repeatedly iterate until heading is in bounds
-        if targetHeading > 360: # if greater than 360 then subtract 360
-            targetHeading -= 360
-        if targetHeading < 0: # if less than 0 add 360
-            targetHeading += 360
-    
-    brain.screen.next_row()
-    brain.screen.print("refined target:", targetHeading)
-    
-    if degrees < 0: # left turn until the heading is at target w/tolerance
-        while (targetHeading - tolerance) > (inertialSens.heading()) or (targetHeading + tolerance) < (inertialSens.heading()):
-            error = abs(targetHeading - inertialSens.heading())
-            if error > 180:
-                error = (360 - error)
-
-            speed = error * kP
-            if speed < 5:
-                speed = 5
-
-            # if speed > 100:
-            #     speed = 100
-            # if speed < 0:
-            #     speed *= -1
-            
-            brain.screen.clear_row(4)
-            brain.screen.set_cursor(4,1)
-            brain.screen.print("heading: ", inertialSens.heading())
-            brain.screen.clear_row(5)
-            brain.screen.set_cursor(5,1)
-            brain.screen.print("error: ",error)
-            brain.screen.clear_row(6)
-            brain.screen.set_cursor(6,1)
-            brain.screen.print("speed: ", speed)
-            brain.screen.render()
-
-            rightMotors.spin(REVERSE, speed, PERCENT)
-            leftMotors.spin(FORWARD, speed, PERCENT)
-
-    else: # right turn
-        while (targetHeading - tolerance) > (inertialSens.heading()) or (targetHeading + tolerance) < (inertialSens.heading()):
-            error = abs(targetHeading - inertialSens.heading())
-            if error > 180:
-                error = (360 - error)
-            speed = error * kP
-
-            if speed < 5:
-                speed = 5
-
-            # if speed > 100:
-            #     speed = 100
-
-            brain.screen.clear_row(4)
-            brain.screen.set_cursor(4,1)
-            brain.screen.print("heading: ", inertialSens.heading())
-            brain.screen.clear_row(5)
-            brain.screen.set_cursor(5,1)
-            brain.screen.print("error: ",error)
-            brain.screen.clear_row(6)
-            brain.screen.set_cursor(6,1)
-            brain.screen.print("speed: ", speed)
-            brain.screen.render()
-
-            rightMotors.spin(FORWARD, speed, PERCENT)
-            leftMotors.spin(REVERSE, speed, PERCENT)
-    
-    rightMotors.stop()
-    leftMotors.stop()
-
 def auton():    
     headlightLED.set(False)
     leftTurnLED.set(False)
     rightTurnLED.set(False)
+
     if selected == "skip" or None:
         return
     
     elif selected == "skills":
-        if brain.battery.capacity() > 25:
-            headlightLED.set(True)
-            leftTurnLED.set(True)
-            rightTurnLED.set(True)
-            brain.timer.clear()
+        headlightLED.set(True)
+        leftTurnLED.set(True)
+        rightTurnLED.set(True)
+        brain.timer.clear()
 
-            drivetrain.set_timeout(2, SECONDS)
-            drivetrain.set_turn_constant(0.28)
-            drivetrain.set_turn_threshold(0.25)
+        drivetrain.set_timeout(2, SECONDS)
+        drivetrain.set_turn_constant(0.28)
+        drivetrain.set_turn_threshold(0.25)
 
-            # cataMotor.spin(FORWARD, 90)
-            # wait(30, SECONDS)
-            # while not cataLimit.pressing():
-            #     cataMotor.spin(FORWARD, 70)
-            # cataMotor.stop(BRAKE)
+        # cataMotor.spin(FORWARD, 95)
+        # wait(28, SECONDS)
+        while not cataLimit.pressing():
+            cataMotor.spin(FORWARD, 40, PERCENT)
+        cataMotor.stop(HOLD)
 
-            print("Started")
+        drivetrain.turn_to_heading(90, DEGREES, 40, PERCENT)
+        print("Error: ", 90 - inertialSens.heading())
 
-            drivetrain.turn_to_heading(90, DEGREES, 40, PERCENT)
-            print("Error: ", 90 - inertialSens.heading())
+        drivetrain.drive_for(REVERSE, 700, MM, 50, PERCENT)
+        wait(0.2, SECONDS)
+        drivetrain.drive_for(FORWARD, 800, MM, 50, PERCENT)
 
-            drivetrain.drive_for(REVERSE, 700, MM, 50, PERCENT)
-            wait(0.2, SECONDS)
-            drivetrain.drive_for(FORWARD, 800, MM, 50, PERCENT)
+        intakeMotor.spin(REVERSE, 100, PERCENT)
+        drivetrain.turn_to_heading(32, DEGREES, 40, PERCENT)
+        print("Error: ", 32 - inertialSens.heading())
 
-            intakeMotor.spin(REVERSE, 100, PERCENT)
-            drivetrain.turn_to_heading(32, DEGREES, 40, PERCENT)
-            print("Error: ", 32 - inertialSens.heading())
+        drivetrain.drive_for(FORWARD, 2050, MM, 80, PERCENT)
 
-            drivetrain.drive_for(FORWARD, 2050, MM, 80, PERCENT)
+        intakeMotor.stop()
 
-            intakeMotor.stop()
+        drivetrain.turn_to_heading(0, DEGREES, 40, PERCENT)
+        print("Error: ", 0 - inertialSens.heading())
 
-            drivetrain.turn_to_heading(0, DEGREES, 40, PERCENT)
-            print("Error: ", 0 - inertialSens.heading())
+        drivetrain.drive_for(FORWARD, 650, MM, 50, PERCENT)
 
-            drivetrain.drive_for(FORWARD, 650, MM, 50, PERCENT)
+        drivetrain.turn_to_heading(310, DEGREES, 40, PERCENT)
+        print("Error: ", 310 - inertialSens.heading())
 
-            drivetrain.turn_to_heading(310, DEGREES, 40, PERCENT)
-            print("Error: ", 310 - inertialSens.heading())
+        intakeMotor.spin(FORWARD, 100, PERCENT)
+        drivetrain.drive_for(FORWARD, 400, MM, 50, PERCENT)
+        wait(0.2, SECONDS)
+        drivetrain.drive_for(REVERSE, 200, MM, 50, PERCENT)
+        intakeMotor.stop()
+        drivetrain.turn_to_heading(235, DEGREES, 40, PERCENT)
+        print("Error: ", 235 - inertialSens.heading())
 
-            intakeMotor.spin(FORWARD, 100, PERCENT)
-            drivetrain.drive_for(FORWARD, 400, MM, 50, PERCENT)
-            wait(0.2, SECONDS)
-            drivetrain.drive_for(REVERSE, 200, MM, 50, PERCENT)
-            intakeMotor.stop()
+        drivetrain.drive_for(FORWARD, 1200, MM, 60, PERCENT)
 
-            drivetrain.turn_to_heading(235, DEGREES, 40, PERCENT)
-            print("Error: ", 235 - inertialSens.heading())
+        drivetrain.turn_to_heading(0, DEGREES, 40, PERCENT)
+        print("Error: ", 0 - inertialSens.heading())
 
-            drivetrain.drive_for(FORWARD, 1200, MM, 60, PERCENT)
+        leftWingPiston.set(True)
+        rightWingPiston.set(True)
+        wait(0.2, SECONDS)
+        intakeMotor.spin(FORWARD, 100, PERCENT)
+        drivetrain.drive_for(FORWARD, 900, MM, 70, PERCENT) # Front push into goal
 
-            drivetrain.turn_to_heading(0, DEGREES, 40, PERCENT)
-            print("Error: ", 0 - inertialSens.heading())
+        leftWingPiston.set(False)
+        rightWingPiston.set(False)
+        intakeMotor.stop()
+        drivetrain.drive_for(REVERSE, 600, MM, 70, PERCENT)
 
-            leftWingPiston.set(True)
-            rightWingPiston.set(True)
-            wait(0.2, SECONDS)
-            intakeMotor.spin(FORWARD, 100, PERCENT)
-            drivetrain.drive_for(FORWARD, 800, MM, 70, PERCENT) # Front push into goal
+        leftWingPiston.set(True)
+        rightWingPiston.set(True)
+        intakeMotor.spin(FORWARD, 100, PERCENT)
+        drivetrain.drive_for(FORWARD, 900, MM, 70, PERCENT) # Front push into goal
 
-            leftWingPiston.set(False)
-            intakeMotor.stop()
-            drivetrain.drive_for(REVERSE, 500, MM, 70, PERCENT)
+        leftWingPiston.set(False)
+        rightWingPiston.set(False)
+        intakeMotor.stop()
+        drivetrain.drive_for(REVERSE, 600, MM, 70, PERCENT)
 
-            drivetrain.turn_to_heading(20, DEGREES, 40, PERCENT)
-            print("Error: ", 20 - inertialSens.heading())
+        drivetrain.turn_to_heading(20, DEGREES, 40, PERCENT)
+        print("Error: ", 20 - inertialSens.heading())
             
-            print("Inertial heading: ", inertialSens.heading())
-            con.screen.print(inertialSens.heading())
-            print("Remaining time: ", 60 - brain.timer.time(SECONDS) - 31, "s")
-        else:
-            print("!!!! Battery Low!!!!!")
-            brain.screen.draw_rectangle(0, 0, 480, 240, Color.RED)
+        print("Inertial heading: ", inertialSens.heading())
+        con.screen.print(inertialSens.heading())
+        print("Remaining time: ", 60 - brain.timer.time(SECONDS) - 28, "s")
 
     elif selected == "close":
         brain.timer.reset()
@@ -533,11 +409,15 @@ def thread_main():
         sleep(5)
 
 def toggleCata():
-    print("toggle cata")
     global cataState
     cataState = not cataState
-    if cataState: cataMotor.spin(FORWARD, 90, PERCENT)
-    else: cataMotor.stop(HOLD)
+
+    if cataState:
+        cataMotor.spin(FORWARD)
+    else:
+        while not cataLimit.pressing():
+            cataMotor.spin(FORWARD, 60)
+        cataMotor.stop(HOLD)
 
 def thread_driveControl():
     global ledState
@@ -577,7 +457,7 @@ def thread_driveControl():
         rightMotorA.spin(FORWARD, forwardVolts - turnVolts, VOLT)
         rightMotorB.spin(FORWARD, forwardVolts - turnVolts, VOLT)
         rightMotorC.spin(FORWARD, forwardVolts - turnVolts, VOLT)
-        sleep(5)    
+        sleep(5)
 
 def gifThread():
     index = 1
@@ -606,7 +486,7 @@ headlightLED.set(False)
 leftTurnLED.set(False)
 rightTurnLED.set(False)
 
-# startup()
+startup()
 
 # Assign controller functions
 con.buttonR1.pressed(r1Pressed)
@@ -618,19 +498,16 @@ con.buttonDown.pressed(toggleCata)
 con.buttonRight.pressed(rightWing)
 con.buttonLeft.pressed(leftWing)
 
-selected = "skills"
-auton()
+if selected == "skip_comp_driver": # skip competition for testing
+    userControl()
+elif selected == "skip_comp_close_auton":
+    selected = "close"
+    auton()
+elif selected == "skip_comp_far_auton":
+    selected = "friendly"
+    auton()
+elif selected == "skip_comp_skills_auton":
+    selected = "skills"
+    auton()
 
-# if selected == "skip_comp_driver": # skip competition for testing
-#     userControl()
-# elif selected == "skip_comp_close_auton":
-#     selected = "close"
-#     auton()
-# elif selected == "skip_comp_far_auton":
-#     selected = "friendly"
-#     auton()
-# elif selected == "skip_comp_skills_auton":
-#     selected = "skills"
-#     auton()
-
-# comp = Competition(userControl, auton)
+comp = Competition(userControl, auton)
