@@ -183,6 +183,7 @@ def auton():
         return
     
     elif selected == "skills":
+        inertialSens.reset_heading()
         headlightLED.set(True)
         leftTurnLED.set(True)
         rightTurnLED.set(True)
