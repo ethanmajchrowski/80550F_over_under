@@ -193,11 +193,11 @@ def auton():
         drivetrain.set_turn_constant(0.28)
         drivetrain.set_turn_threshold(0.25)
 
-        # cataMotor.spin(FORWARD, 95)
-        # wait(28, SECONDS)
-        # while not cataLimit.pressing():
-        #     cataMotor.spin(FORWARD, 40, PERCENT)
-        # cataMotor.stop(HOLD)
+        cataMotor.spin(FORWARD, 95)
+        wait(28, SECONDS)
+        while not cataLimit.pressing():
+            cataMotor.spin(FORWARD, 30, PERCENT)
+        cataMotor.stop(HOLD)
 
         drivetrain.turn_to_heading(90, DEGREES, 40, PERCENT)
         print("Error: ", 90 - inertialSens.heading())
