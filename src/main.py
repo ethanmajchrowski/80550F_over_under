@@ -158,10 +158,6 @@ def screen_update():
         brain.screen.set_cursor(1,1)
         brain.screen.print("Selected: ", selected)
         selecting = False
-        # if selected == "close":
-        #     while(not cataLimit.pressing()):
-        #         cataMotor.spin(FORWARD, 60, PERCENT)
-        #     cataMotor.stop(HOLD)
 
     brain.screen.render()
 
@@ -174,11 +170,11 @@ def startup():
         screen_update()
     wait(1, SECONDS)
 
+
 def auton():    
     headlightLED.set(False)
     leftTurnLED.set(False)
     rightTurnLED.set(False)
-
     if selected == "skip" or None:
         return
     
@@ -193,11 +189,14 @@ def auton():
         drivetrain.set_turn_constant(0.28)
         drivetrain.set_turn_threshold(0.25)
 
-        # cataMotor.spin(FORWARD, 95)
-        # wait(28, SECONDS)
+        drivetrain.stop(HOLD)
+        cataMotor.spin(FORWARD, 95)
+        wait(27, SECONDS)
         while not cataLimit.pressing():
-            cataMotor.spin(FORWARD, 40, PERCENT)
+            cataMotor.spin(FORWARD, 25, PERCENT)
         cataMotor.stop(HOLD)
+        drivetrain.stop(COAST)
+        wait(0.1, SECONDS)
 
         drivetrain.turn_to_heading(90, DEGREES, 40, PERCENT)
         print("Error: ", 90 - inertialSens.heading())
@@ -207,6 +206,7 @@ def auton():
         drivetrain.drive_for(FORWARD, 800, MM, 50, PERCENT)
 
         intakeMotor.spin(REVERSE, 100, PERCENT)
+        wait(0.1, SECONDS)
         drivetrain.turn_to_heading(32, DEGREES, 40, PERCENT)
         print("Error: ", 32 - inertialSens.heading())
 
@@ -214,6 +214,7 @@ def auton():
 
         intakeMotor.stop()
 
+        wait(0.1, SECONDS)
         drivetrain.turn_to_heading(0, DEGREES, 40, PERCENT)
         print("Error: ", 0 - inertialSens.heading())
 
@@ -227,10 +228,12 @@ def auton():
         wait(0.2, SECONDS)
         drivetrain.drive_for(REVERSE, 200, MM, 50, PERCENT)
         intakeMotor.stop()
+        wait(0.1, SECONDS)
         drivetrain.turn_to_heading(235, DEGREES, 40, PERCENT)
         print("Error: ", 235 - inertialSens.heading())
 
         drivetrain.drive_for(FORWARD, 1200, MM, 60, PERCENT)
+        wait(0.1, SECONDS)
 
         drivetrain.turn_to_heading(0, DEGREES, 40, PERCENT)
         print("Error: ", 0 - inertialSens.heading())
@@ -245,6 +248,7 @@ def auton():
         rightWingPiston.set(False)
         intakeMotor.stop()
         drivetrain.drive_for(REVERSE, 600, MM, 70, PERCENT)
+        wait(0.1, SECONDS)
 
         leftWingPiston.set(True)
         rightWingPiston.set(True)
@@ -254,11 +258,26 @@ def auton():
         leftWingPiston.set(False)
         rightWingPiston.set(False)
         intakeMotor.stop()
-        drivetrain.drive_for(REVERSE, 600, MM, 70, PERCENT)
+        wait(0.1, SECONDS)
+        drivetrain.drive_for(REVERSE, 700, MM, 70, PERCENT)
 
-        drivetrain.turn_to_heading(20, DEGREES, 40, PERCENT)
+        drivetrain.turn_to_heading(295, DEGREES, 40, PERCENT)
         print("Error: ", 20 - inertialSens.heading())
             
+        drivetrain.drive_for(FORWARD, 1000, MM, 70, PERCENT)
+        drivetrain.turn_to_heading(80, DEGREES, 40, PERCENT)
+        leftWingPiston.set(True)
+        rightWingPiston.set(True)
+        wait(0.1, SECONDS)
+        drivetrain.drive_for(FORWARD, 600, MM , 70, PERCENT)
+        drivetrain.turn_to_heading(50, DEGREES)
+        wait(0.1, SECONDS)
+        intakeMotor.spin(FORWARD, 100, PERCENT)
+        wait(0.2, SECONDS)
+        drivetrain.drive_for(FORWARD, 500, MM , 70, PERCENT)
+        wait(0.2, SECONDS)
+        drivetrain.drive_for(REVERSE, 200, MM , 70, PERCENT)
+
         print("Inertial heading: ", inertialSens.heading())
         con.screen.print(inertialSens.heading())
         print("Remaining time: ", 60 - brain.timer.time(SECONDS) - 28, "s")
@@ -290,31 +309,77 @@ def auton():
         print("done at ", brain.timer.time(SECONDS), "s")
 
     if selected == "friendly":
+        brain.timer.clear()
+        drivetrain.set_timeout(2, SECONDS)
+        drivetrain.set_turn_constant(0.28)
+        drivetrain.set_turn_threshold(.5)
+        drivetrain.set_turn_velocity(50, PERCENT)
+        drivetrain.set_drive_velocity(60, PERCENT)
+
         drivetrain.drive_for(FORWARD, 100, MM)
         rightWingPiston.set(True)
-        drivetrain.drive_for(FORWARD, 150, MM)
-        drivetrain.turn_for(LEFT, 45)
-        drivetrain.drive_for(FORWARD, 540, MM, 60, PERCENT)
-        rightWingPiston.set(False)
-        wait(0.1, SECONDS)
-        drivetrain.drive_for(REVERSE, 240, MM)
-        drivetrain.turn_to_heading(250, DEGREES)
-        intakeMotor.spin(REVERSE, 100, PERCENT)
-        drivetrain.drive_for(FORWARD, 1000, MM, 70, PERCENT)
-        drivetrain.turn_to_heading(45, DEGREES)
-        intakeMotor.stop()
-        drivetrain.drive_for(FORWARD, 400, MM, 80, PERCENT)
-        leftWingPiston.set(True)
-        drivetrain.turn_for(RIGHT, 60, DEGREES)
-        intakeMotor.spin(FORWARD, 100, PERCENT)
-        drivetrain.drive_for(FORWARD, 650, MM, 80, PERCENT)
-        drivetrain.drive_for(REVERSE, 200, MM, 80, PERCENT)
- 
-        wait(1, SECONDS)
-        intakeMotor.stop()
-        drivetrain.stop(COAST)
-        leftWingPiston.set(False)
+        wait(.6, SECONDS)
+        drivetrain.drive_for(FORWARD, 380, MM, 30, PERCENT)
 
+        rightWingPiston.set(False)
+        drivetrain.turn_for(LEFT, 50, DEGREES)
+        drivetrain.turn_for(LEFT, 150, DEGREES)
+        drivetrain.drive_for(REVERSE, 600, MM, 100, PERCENT)
+        drivetrain.drive_for(FORWARD, 240, MM)
+        drivetrain.turn_to_heading(237, DEGREES)
+        intakeMotor.spin(REVERSE, 100, PERCENT)
+        drivetrain.drive_for(FORWARD, 1200, MM, 70, PERCENT)
+        drivetrain.turn_to_heading(0, DEGREES)
+        intakeMotor.spin(FORWARD, 120, PERCENT)
+        drivetrain.drive_for(FORWARD, 300, MM, 50, PERCENT)
+        drivetrain.turn_to_heading(272, DEGREES)
+        intakeMotor.spin(REVERSE, 100, PERCENT)
+        drivetrain.drive_for(FORWARD, 650, MM, 80, PERCENT)
+        drivetrain.turn_to_heading(45, DEGREES)
+        leftWingPiston.set(True)
+        rightWingPiston.set(True)
+        intakeMotor.spin(FORWARD, 100, PERCENT)
+        drivetrain.drive_for(FORWARD, 1200, MM, 100, PERCENT)
+        drivetrain.drive_for(REVERSE, 200, MM)
+        intakeMotor.stop()
+
+
+        # intakeMotor.spin(REVERSE, 100, PERCENT)
+        # wait(.5,SECONDS)
+        # drivetrain.drive_for(FORWARD, 90, MM)
+        # wait(.2,SECONDS)
+        # drivetrain.drive_for(REVERSE, 110, MM)
+        # drivetrain.turn_to_heading(170, DEGREES)
+        # intakeMotor.stop()
+        # drivetrain.drive_for(FORWARD, 850, MM, 100, PERCENT)
+        # drivetrain.turn_to_heading(135, DEGREES)
+        # rightWingPiston.set(True)
+        # intakeMotor.spin(FORWARD, 100, PERCENT)
+        # drivetrain.drive_for(FORWARD, 550, MM)
+        # drivetrain.turn_for(LEFT, 200, DEGREES)
+        # rightWingPiston.set(False)
+        # drivetrain.drive_for(REVERSE, 400, MM, 60, PERCENT)
+        # intakeMotor.stop()
+        # drivetrain.drive_for(FORWARD, 300, MM, 60, PERCENT)
+
+        # drivetrain.turn_to_heading(238, DEGREES)
+        # intakeMotor.spin(REVERSE, 100, PERCENT)
+        # drivetrain.drive_for(FORWARD, 1550, MM, 60, PERCENT)
+        # drivetrain.turn_to_heading(15, DEGREES)
+        # intakeMotor.spin(FORWARD, 100, PERCENT)
+        # drivetrain.drive_for(FORWARD, 300, MM)
+        # drivetrain.turn_to_heading(38, DEGREES)
+        # intakeMotor.spin(REVERSE, 100, PERCENT)
+        # drivetrain.drive_for(FORWARD, 700, MM)
+        # drivetrain.turn_to_rotation(180, DEGREES)
+        # rightWingPiston.set(True)
+        # leftWingPiston.set(True)
+        # intakeMotor.spin(FORWARD, 100, PERCENT)
+        # drivetrain.drive_for(FORWARD, 900, MM)
+        # drivetrain.drive_for(REVERSE, 200, MM)
+
+
+        print("done at ", brain.timer.time(SECONDS), "s")
     headlightLED.set(True)
     leftTurnLED.set(True)
     rightTurnLED.set(True)
@@ -379,12 +444,9 @@ def leftWing():
     else:
         leftWingPiston.set(True)
 
-def toggleBlocker():
-    blockerPiston.set(not blockerPiston.value())
-
 def lowerCata():
     while not cataLimit.pressing():
-        cataMotor.spin(FORWARD, 40)
+        cataMotor.spin(FORWARD, 30)
         if con.buttonDown.pressing(): break
     cataMotor.stop(HOLD)
 
@@ -417,7 +479,7 @@ def toggleCata():
         cataMotor.spin(FORWARD)
     else:
         while not cataLimit.pressing():
-            cataMotor.spin(FORWARD, 60)
+            cataMotor.spin(FORWARD, 30)
         cataMotor.stop(HOLD)
 
 def thread_driveControl():
@@ -493,7 +555,6 @@ startup()
 con.buttonR1.pressed(r1Pressed)
 con.buttonR2.pressed(r2Pressed)
 con.buttonA.pressed(toggleWings)
-con.buttonX.pressed(toggleBlocker)
 con.buttonUp.pressed(lowerCata)
 con.buttonDown.pressed(toggleCata)
 con.buttonRight.pressed(rightWing)
