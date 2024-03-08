@@ -1,23 +1,23 @@
 from vex import *
-
-# Define generic
+#### Define generic ####
 brain = Brain()
 con = Controller(PRIMARY)
 
-# Define Ports
-leftMotorA = Motor(Ports.PORT11, GearSetting.RATIO_6_1, True)
-rightMotorA = Motor(Ports.PORT12, GearSetting.RATIO_6_1, False)
-leftMotorB = Motor(Ports.PORT13, GearSetting.RATIO_6_1, True)
-rightMotorB = Motor(Ports.PORT14, GearSetting.RATIO_6_1, False)
-leftMotorC = Motor(Ports.PORT15, GearSetting.RATIO_6_1, True)
-rightMotorC = Motor(Ports.PORT16, GearSetting.RATIO_6_1, False)
-intakeMotor = Motor(Ports.PORT17, GearSetting.RATIO_18_1, True)
-cataMotor = Motor(Ports.PORT18, GearSetting.RATIO_36_1, True)
+#### Define Ports ####
+leftMotorA =  Motor(Ports.PORT7, GearSetting.RATIO_6_1, False)
+rightMotorA = Motor(Ports.PORT2, GearSetting.RATIO_6_1, False)
+leftMotorB =  Motor(Ports.PORT3, GearSetting.RATIO_6_1, False)
+rightMotorB = Motor(Ports.PORT4, GearSetting.RATIO_6_1, False)
+leftMotorC =  Motor(Ports.PORT5, GearSetting.RATIO_6_1, False)
+rightMotorC = Motor(Ports.PORT6, GearSetting.RATIO_6_1, False)
+
+intakeMotor = Motor(Ports.PORT17, GearSetting.RATIO_18_1, False)
+cataMotor =   Motor(Ports.PORT18, GearSetting.RATIO_36_1, True)
 inertialSens = Inertial(Ports.PORT19)
 threeWireExtender = Triport(Ports.PORT20)
 
 # Create motor groups
-leftMotors = MotorGroup(leftMotorA, leftMotorB, leftMotorC)
+leftMotors =  MotorGroup(leftMotorA, leftMotorB, leftMotorC)
 rightMotors = MotorGroup(rightMotorA, rightMotorB, rightMotorC)
 
 # 3 wire ports
@@ -25,174 +25,191 @@ leftWingPiston =  DigitalOut(brain.three_wire_port.f)
 rightWingPiston = DigitalOut(brain.three_wire_port.h)
 blockerPiston =   DigitalOut(brain.three_wire_port.g)
 endgamePiston =   DigitalOut(brain.three_wire_port.e)
+headlightLED =    DigitalOut(threeWireExtender.d)
+leftTurnLED =     DigitalOut(threeWireExtender.c)
+rightTurnLED =    DigitalOut(threeWireExtender.b)
+cataLimit =       Limit(threeWireExtender.a)
 
-cataLimit =    Limit(threeWireExtender.a)
-headlightLED = DigitalOut(threeWireExtender.d)
-leftTurnLED =  DigitalOut(threeWireExtender.c)
-rightTurnLED = DigitalOut(threeWireExtender.b)
-
-# Calibrate sensors
+#### Calibrate inertial ####
 inertialSens.calibrate()
-while inertialSens.is_calibrating():
-    wait(50, MSEC)
-brain.screen.clear_screen()
+while inertialSens.is_calibrating(): wait(50, MSEC)
 
-# DRIVETRAIN
+#### Drivetrain setup ####
 drivetrain = SmartDrive(leftMotors, rightMotors, inertialSens, (2.75 * 3.14) * 25.4, (11 * 25.4), (10.5 * 25.4), MM, 0.75)
+
+#### Variables ####
+
+#### Config ####
 drivetrain.set_drive_velocity(40, PERCENT)
 drivetrain.set_turn_velocity(5, PERCENT)
 drivetrain.set_timeout(2, SECONDS)
 
-# VARIABLES
-intakeStatus = False
-intakeDir = "in"
-armState = "closed"
-gifState = True
-selecting = True
-selected = None
-touch_areas = []
-screen_state = "main" # main, test, tools, thermals
-ledState = True
-cataState = False
+#### Controls ####
+CONTROL_DRIVE_TURN_AXIS =    con.axis1 # used to turn the robot
+CONTROL_DRIVE_FORWARD_AXIS = con.axis3 # drives the robot forward (3 for normal, 2 for right)
+CONTROL_INTAKE_OUT =         con.buttonR1 # extakes
+CONTROL_INTAKE_IN =          con.buttonR2 # intakes
+CONTROL_FULL_WINGS =         con.buttonA # toggles both wings
+CONTROL_LEFT_WING =          con.buttonLeft # toggles the left wing
+CONTROL_RIGHT_WING =         con.buttonRight # toggles the right wing
+CONTROL_CATA_LOWER =         con.buttonUp # lowers the catapult
+CONTROL_CATA_TOGGLE =        con.buttonDown # toggles the catapult
 
-# CONFIG
-cataMotor.set_velocity(90, PERCENT)
-cataMotor.set_max_torque(100, PERCENT)
-intakeMotor.set_velocity(100, PERCENT)
-headlightLED.set(True)
+## overall flow: 
+# startup (screen & controller selection)
+# comp variable:
+    # auton (based on selection)
+    # driver control
 
-# CONTROLS
-BLOCKER_BUTTON = con.buttonB
+###################################
+#### Startup / Auton Selection ####
+###################################
+# usable size of brain is 480x240 pixels
+#### Classes ####
 
-leftTurnLED.set(True)
-rightTurnLED.set(True)
+class autonSelector():
+    '''
+    Handles the auton selection code including menus, 
+    buttons, and finalizing the autonomous selection.
+    '''
+    def __init__(self, initial_screen) -> None:
+        self.touch_areas = []
+        self.selecting = True
+        self.screen_state = initial_screen
+    
+    def button(self, x: int, y: int, width: int, height: int, text: str, 
+               color = Color(Color.BLACK), text_color = Color(Color.WHITE), 
+               action = None, end_selection = True) -> None: 
+        '''
+        Draws a button on the brain screen at the specified coordinates
+        with the specified text.
 
-def button(x, y, width, height, text = "", color = Color(Color.BLACK), text_color = Color(Color.WHITE), action = None): # usable size of brain is 480x240
-    brain.screen.set_fill_color(color)
-    brain.screen.draw_rectangle(x, y, width, height)
-    string_width = brain.screen.get_string_width(text)
-    brain.screen.set_pen_color(text_color)
-    brain.screen.print_at(text, x = (x + (width / 2)) - (string_width / 2), y = (y + (height * 0.5)))
-    touch_areas.append((x,y,width,height,action))
-    brain.screen.set_pen_color(Color.WHITE)
-    brain.screen.set_fill_color(Color.BLACK)
+        Args:
+            x (int): the x position for the top left corner
+            y (int): the y position for the top left corner
+            width (int): the width of the button (left -> right)
+            height (int): the height of the button (top -> bottom)
+            color (Color): the fill color of the button
+            text_color (Color): the color of the text
+            action (str): The action to be added to touch_areas when the button is pressed
+            end_selection (bool): Wether or not to end auton selection when this button is pressed
 
-def touch_check():
-    global screen_state, selected
-    touch_x = brain.screen.x_position()
-    touch_y = brain.screen.y_position()
+        Returns:
+            none
+        '''
+        string_width = brain.screen.get_string_width(text)
+        
+        brain.screen.set_fill_color(color)
+        brain.screen.draw_rectangle(x, y, width, height)
+        brain.screen.set_pen_color(text_color)
+        brain.screen.print_at(text, x = (x + (width / 2)) - (string_width / 2), y = (y + (height * 0.5)))
+        brain.screen.set_pen_color(Color.WHITE)
+        brain.screen.set_fill_color(Color.BLACK)
 
-    for area in touch_areas:
-        x, y, width, height, action = area[0], area[1], area[2], area[3], area[4]
-        if (x < touch_x < x + width) and (y < touch_y < y + height): # if button is touched
-            print("touched button with action ", action)
-            if action == None:
-                break
-            if action == "skip":
-                selected = action
-                screen_state = "completed"
-            if action == "friendly":
-                selected = action
-                screen_state = "completed"
-            if action == "close":
-                selected = action
-                screen_state = "completed"
-            if action == "skills":
-                selected = action
-                screen_state = "completed"
-            if action == "skip_comp_driver": 
-                selected = action
-                screen_state = "completed"
-            if action == "skip_comp_close_auton":
-                selected = action
-                screen_state = "completed"
-            if action == "skip_comp_far_auton":
-                selected = action
-                screen_state = "completed"
-            if action == "skip_comp_skills_auton":
-                selected = action
-                screen_state = "completed"
+        self.touch_areas.append((x, y, width, height, action, end_selection))
 
-            if action == "tools": screen_state = action
-            if action == "thermals": screen_state = action
-            if action == "main_menu": screen_state = "main"
+    def onTouch(self):
+        '''
+        Function to be called when the brain is touched. 
+        If the screen is to be changed, screen state is set to the button's action.
+        If the screen is not changed, auton has been selected and screen state is set to "completed"
+        '''
+        touch_x = brain.screen.x_position()
+        touch_y = brain.screen.y_position()
 
-brain.screen.released(touch_check)
+        for area in self.touch_areas:
+            x, y, width, height, action, end_selection = area[0], area[1], area[2], area[3], area[4], area[5]
+            if (x < touch_x < x + width) and (y < touch_y < y + height): # if button is touched
+                print("Touched button with action", action)
+                if not end_selection:
+                    self.screen_state = action
+                else:
+                    brain.screen.clear_screen()
+                    self.selecting = False
+                    self.screen_state = "completed"
+                    self.selected = action
+                # Redraw buttons for new screen
+                self.drawButtons(self.screen_state)
 
-def screen_update():
-    global touch_areas, selecting
-    touch_areas = []
+    def drawButtons(self, screen: str):
+        '''
+        Function to draw the buttons on the screen. All buttons to be drawn on screen should
+        be listed under the if statement for that screen.
 
-    brain.screen.clear_screen()
+        Args:
+            screen (str): The screen to be drawn
+        
+        Returns: 
+            void
+        '''
+        brain.screen.clear_screen()
+        self.touch_areas = []
+        if screen == "main":
+            self.button(0, 160, 480, 80, "SKIP AUTONOMOUS", Color(Color.RED), action = "skip") # Skip auton button
+            self.button(0,0, 190, 160, "Far (Friendly)", Color(32, 120, 0), action = "far")
+            self.button(190, 0, 190, 160, "Close (opponent)", Color(112, 0, 0), action = "close")
+            self.button(380, 0, 100, 50, "Tools", Color(Color.BLACK), action = "tools", end_selection=False) # tools button
+            self.button(380, 50, 100, 50, "SKILLS", Color(Color.WHITE), text_color = Color(Color.BLACK), action = "skills") # skills autonomous
+        if screen == "test":
+            self.button(200, 100, 100, 50, "skip", action = "skip")
+            self.button(200, 150, 100, 50, "None", action = None)
+        if screen == "tools":
+            self.button(0, 0, 100, 50, "Main", action = "main", color = Color(82, 82, 82), end_selection=False)
+            self.button(0, 50, 100, 190, "Thermals", color = Color(194, 146, 2), action = "thermals", end_selection=False)
+            self.button(100, 50, 100, 190, "Driver", color = Color(82, 82, 82), action = "skip_comp_driver")
+            self.button(200, 50, 100, 190, "Close", color = Color(82, 82, 82), action = "skip_comp_close_auton")
+            self.button(300, 50, 100, 190, "Far", color = Color(82, 82, 82), action = "skip_comp_far_auton")
+            self.button(400, 50, 100, 190, "Skills", color = Color(82, 82, 82), action = "skip_comp_skills_auton")
+        if screen == "thermals":
+            self.button(0, 0, 100, 30, "Main", action = "main", color = Color(82, 82, 82), end_selection=False)
 
-    if screen_state == "main":
-        button(0, 160, 480, 80, "SKIP AUTONOMOUS", Color(Color.RED), action = "skip") # Skip auton button
-        button(0,0, 190, 160, "Far (Friendly)", Color(32, 120, 0), action = "friendly") # Friendly goal routine
-        button(190, 0, 190, 160, "Close (opponent)", Color(112, 0, 0), action = "close") # Opponent goal routing
-        button(380, 0, 100, 50, "Tools", Color(Color.BLACK), action = "tools") # tools button
-        button(380, 50, 100, 50, "SKILLS", Color(Color.WHITE), text_color = Color(Color.BLACK), action = "skills") # skills autonomous
-    if screen_state == "test":
-        button(200, 100, 100, 50, "skip", action = "skip")
-        button(200, 150, 100, 50, "None", action = None)
-    if screen_state == "tools":
-        button(0, 0, 100, 50, "Main", action = "main_menu", color = Color(82, 82, 82))
-        button(0, 50, 100, 190, "Thermals", color = Color(194, 146, 2), action = "thermals")
-        button(100, 50, 100, 190, "Driver", color = Color(82, 82, 82), action = "skip_comp_driver")
-        button(200, 50, 100, 190, "Close", color = Color(82, 82, 82), action = "skip_comp_close_auton")
-        button(300, 50, 100, 190, "Far", color = Color(82, 82, 82), action = "skip_comp_far_auton")
-        button(400, 50, 100, 190, "Skills", color = Color(82, 82, 82), action = "skip_comp_skills_auton")
-    if screen_state == "thermals":
-        button(0, 0, 100, 30, "Main", action = "main_menu", color = Color(82, 82, 82))
+            self.button(0, 30, 240, 40, ("Left A: " + str(leftMotorA.temperature()))) # left 1
+            self.button(0, 70, 240, 40, ("Left B: " + str(leftMotorB.temperature())))# left 2
+            self.button(0, 110, 240, 40, ("Right A: " + str(rightMotorA.temperature())))# left 3
+            self.button(0, 150, 240, 40, ("Right B: " + str(rightMotorB.temperature())))# left 4
+            self.button(0, 190, 240, 40, ("Intake: " + str(intakeMotor.temperature())))# left 5
 
-        button(0, 30, 240, 40, ("Left A: " + str(leftMotorA.temperature()))) # left 1
-        button(0, 70, 240, 40, ("Left B: " + str(leftMotorB.temperature())))# left 2
-        button(0, 110, 240, 40, ("Right A: " + str(rightMotorA.temperature())))# left 3
-        button(0, 150, 240, 40, ("Right B: " + str(rightMotorB.temperature())))# left 4
-        button(0, 190, 240, 40, ("Intake: " + str(intakeMotor.temperature())))# left 5
+            self.button(240, 30, 240, 40, ("Catapult: " + str(cataMotor.temperature()))) # right 1
+            # self.button(240, 110, 240, 40, "None: 55*C")# right 3
+            # self.button(240, 150, 240, 40, "None: 55*C")# right 4
+            # self.button(240, 190, 240, 40, "motor: 55*C")# right 5
+        elif screen == "completed":
+            brain.screen.set_cursor(1,1)
+            brain.screen.set_font(FontType.MONO30)
+            brain.screen.print("SELECTED:", self.selected)
+            brain.screen.new_line()
+        brain.screen.render()
 
-        button(240, 30, 240, 40, ("Catapult: " + str(cataMotor.temperature()))) # right 1
-        # button(240, 110, 240, 40, "None: 55*C")# right 3
-        # button(240, 150, 240, 40, "None: 55*C")# right 4
-        # button(240, 190, 240, 40, "motor: 55*C")# right 5
-    if screen_state == "completed":
-        brain.screen.set_cursor(1,1)
-        brain.screen.print("Selected: ", selected)
-        selecting = False
+    def run(self):
+        while self.selecting:
+            self.drawButtons(self.screen_state)
 
-    brain.screen.render()
-
-def startup():
-    brain.screen.print("Startup - gui.py")
-    wait(50, MSEC)
-    brain.screen.clear_screen()
-
-    while selecting:
-        screen_update()
-    wait(1, SECONDS)
+###################################
+########## Autonomous #############
+###################################
 
 
 def auton():    
-    headlightLED.set(False)
-    leftTurnLED.set(False)
-    rightTurnLED.set(False)
-    if selected == "skip" or None:
+    brain.timer.clear()
+
+    if selector.selected == "skip" or None:
         return
-    
-    elif selected == "skills":
+
+    elif selector.selected == "skills" or selector.selected == "skip_comp_skills_auton":
         inertialSens.reset_heading()
         headlightLED.set(True)
         leftTurnLED.set(True)
         rightTurnLED.set(True)
-        brain.timer.clear()
 
         drivetrain.set_timeout(2, SECONDS)
         drivetrain.set_turn_constant(0.28)
         drivetrain.set_turn_threshold(0.25)
 
-        # cataMotor.spin(FORWARD, 95)
-        # wait(28, SECONDS)
+        drivetrain.stop(HOLD)
+        cataMotor.spin(FORWARD, 95)
+        wait(27, SECONDS)
         while not cataLimit.pressing():
-            cataMotor.spin(FORWARD, 40, PERCENT)
+            cataMotor.spin(FORWARD, 25, PERCENT)
         cataMotor.stop(HOLD)
         drivetrain.stop(COAST)
         wait(0.1, SECONDS)
@@ -257,17 +274,31 @@ def auton():
         leftWingPiston.set(False)
         rightWingPiston.set(False)
         intakeMotor.stop()
-        drivetrain.drive_for(REVERSE, 600, MM, 70, PERCENT)
+        wait(0.1, SECONDS)
+        drivetrain.drive_for(REVERSE, 700, MM, 70, PERCENT)
 
         drivetrain.turn_to_heading(295, DEGREES, 40, PERCENT)
         print("Error: ", 20 - inertialSens.heading())
             
+        drivetrain.drive_for(FORWARD, 1000, MM, 70, PERCENT)
+        drivetrain.turn_to_heading(80, DEGREES, 40, PERCENT)
+        leftWingPiston.set(True)
+        rightWingPiston.set(True)
+        wait(0.1, SECONDS)
+        drivetrain.drive_for(FORWARD, 600, MM , 70, PERCENT)
+        drivetrain.turn_to_heading(50, DEGREES)
+        wait(0.1, SECONDS)
+        intakeMotor.spin(FORWARD, 100, PERCENT)
+        wait(0.2, SECONDS)
+        drivetrain.drive_for(FORWARD, 500, MM , 70, PERCENT)
+        wait(0.2, SECONDS)
+        drivetrain.drive_for(REVERSE, 200, MM , 70, PERCENT)
+
         print("Inertial heading: ", inertialSens.heading())
         con.screen.print(inertialSens.heading())
         print("Remaining time: ", 60 - brain.timer.time(SECONDS) - 28, "s")
 
-    elif selected == "close":
-        brain.timer.reset()
+    elif selector.selected == "close" or selector.selected == "skip_comp_close_auton":
         cataMotor.spin(FORWARD, 100)
         while not cataLimit.pressing():
             pass
@@ -290,10 +321,8 @@ def auton():
         drivetrain.drive_for(FORWARD, 20, MM, 10, PERCENT)
         wait(3, SECONDS)
         intakeMotor.stop()
-        print("done at ", brain.timer.time(SECONDS), "s")
 
-    if selected == "friendly":
-        brain.timer.clear()
+    elif selector.selected == "far" or selector.selected == "skip_comp_far_auton":
         drivetrain.set_timeout(2, SECONDS)
         drivetrain.set_turn_constant(0.28)
         drivetrain.set_turn_threshold(.5)
@@ -362,51 +391,37 @@ def auton():
         # drivetrain.drive_for(FORWARD, 900, MM)
         # drivetrain.drive_for(REVERSE, 200, MM)
 
+    print("Time taken:", brain.timer.value(), "s")
 
-        print("done at ", brain.timer.time(SECONDS), "s")
-    headlightLED.set(True)
-    leftTurnLED.set(True)
-    rightTurnLED.set(True)
+###################################
+########## Drive Control ##########
+###################################
 
-def inertValuesThread():
-    timer = Timer()
-    while True:
-        brain.screen.clear_row(1)
-        brain.screen.set_cursor(1,1)
+### Press controls
+'''
+This area should include all button functions that are defined by a control tap
+Ex.
+    def tap():
+        print("tap!")
 
-        brain.screen.print("Heading: ", inertialSens.heading(), " degrees")
-        brain.screen.next_row()
-        brain.screen.print("Acceleration: ", inertialSens.acceleration(XAXIS), inertialSens.acceleration(YAXIS), inertialSens.acceleration(ZAXIS))
-        brain.screen.next_row()
-        brain.screen.print("Acceleration m/s^2: ", inertialSens.acceleration(XAXIS) * 9.8, inertialSens.acceleration(ZAXIS) * 9.8) # type:ignore
-        # brain.screen.next_row()
-        # brain.screen.print("time since last call:", timer.time())
-        # timer.reset()
-        
-        wait(50, MSEC)
+    con.buttonB.pressed(tap)
+'''
 
-        brain.screen.render()
+#region controls
 
-# define controller functions
-def r2Pressed():
-    global intakeStatus, intakeDir
-    if intakeStatus == False:
-        intakeStatus = True
-        intakeDir = "in"
-    elif intakeStatus == True and intakeDir == "in":
-        intakeStatus = False
-    elif intakeStatus == True and intakeDir == "out":
-        intakeDir = "in"
+def toggleCata():
+    if not cataMotor.is_spinning():
+        cataMotor.spin(FORWARD, 100, PERCENT)
+    else:
+        while not cataLimit.pressing():
+            cataMotor.spin(FORWARD, 30)
+        cataMotor.stop(HOLD)
 
-def r1Pressed():
-    global intakeStatus, intakeDir
-    if intakeStatus == False:
-        intakeStatus = True
-        intakeDir = "out"
-    elif intakeStatus == True and intakeDir == "out":
-        intakeStatus = False
-    elif intakeStatus == True and intakeDir == "in":
-        intakeDir = "out"
+def lowerCata():
+    while not cataLimit.pressing():
+        cataMotor.spin(FORWARD, 30)
+        if con.buttonDown.pressing(): break
+    cataMotor.stop(HOLD)
 
 def toggleWings():
     if rightWingPiston.value() == True or leftWingPiston.value() == True:
@@ -417,85 +432,60 @@ def toggleWings():
         leftWingPiston.set(True)
 
 def rightWing():
-    if rightWingPiston.value() == True:
-        rightWingPiston.set(False)
-    else:
-        rightWingPiston.set(True)
+    rightWingPiston.set(not rightWingPiston.value())
 
 def leftWing():
-    if leftWingPiston.value() == True:
-        leftWingPiston.set(False)
-    else:
-        leftWingPiston.set(True)
+    leftWingPiston.set(not leftWingPiston.value())
 
-def lowerCata():
-    while not cataLimit.pressing():
-        cataMotor.spin(FORWARD, 30)
-        if con.buttonDown.pressing(): break
-    cataMotor.stop(HOLD)
-
-def thread_main():
-    # def thread vars
-    global intakeStatus, intakeDir    
-    # thread loop
-    while True:
-        print("limit switch: ", str(cataLimit.pressing()))
-        if intakeStatus == True:
-            if intakeDir == "in":
-                intakeMotor.spin(FORWARD)
-            else:
-                intakeMotor.spin(REVERSE)
+def intake():
+    if intakeMotor.command(PERCENT) != 0:
+        if intakeMotor.command(PERCENT) < 0:
+            intakeMotor.spin(FORWARD, 100, PERCENT)
         else:
             intakeMotor.stop()
-
-        if con.buttonB.pressing():
-            endgamePiston.set(True)
-        else:
-            endgamePiston.set(False)
-        
-        sleep(5)
-
-def toggleCata():
-    global cataState
-    cataState = not cataState
-
-    if cataState:
-        cataMotor.spin(FORWARD)
     else:
-        while not cataLimit.pressing():
-            cataMotor.spin(FORWARD, 30)
-        cataMotor.stop(HOLD)
+        intakeMotor.spin(FORWARD, 100, PERCENT)
 
-def thread_driveControl():
-    global ledState
-    hold = 100
+def extake():
+    if intakeMotor.command(PERCENT) != 0:
+        if intakeMotor.command(PERCENT) < 0:
+            intakeMotor.stop()
+        else:
+            intakeMotor.spin(REVERSE, 100, PERCENT)
+    else:
+        intakeMotor.spin(REVERSE, 100, PERCENT)
+
+#endregion controls
+
+### Hold controls
+def hold_buttons():
+    '''
+    This is where all the controls go that are simply 
+    "if this button is actively pressed, do this"
+    '''
+    pass
+
+# Main threads
+def cosmetic_thread():
+    '''
+    Handles all cosmetic / misc things for the drive control (brain screen animations, 
+    LED control, etc.). 
+    Essentially if you disable this function the robot will still work fine.
+    '''
+    pass
+
+def control_thread():
+    '''
+    Handles everything that actually drives the robot. Controls, motor movement, etc.
+    '''
+    # Button Controls (button.pressed)
+    CONTROL_INTAKE_IN.pressed(intake)
+    CONTROL_INTAKE_OUT.pressed(extake)
+
     while True:
-        # handle LED control if allowed
-        if ledState == True:
-            headlightLED.set(True)
-            if con.axis1.position() > 10:
-                leftTurnLED.set(False)
-                rightTurnLED.set(True)
-            elif con.axis1.position() < -10:
-                rightTurnLED.set(False)
-                leftTurnLED.set(True)
-            else:
-                rightTurnLED.set(False)
-                leftTurnLED.set(False)
-        else:
-            headlightLED.set(False)
-            rightTurnLED.set(False)
-            leftTurnLED.set(False)
-
-        if con.buttonL1.pressing() and con.buttonL2.pressing():
-            hold -= 1
-            if hold == 0: ledState = not ledState
-        else:
-            hold = 100
-
         # Convert controller axis to voltage levels
-        turnVolts = con.axis2.position() * -0.12
-        forwardVolts = con.axis1.position() * -0.12 
+        turnVolts = CONTROL_DRIVE_TURN_AXIS.position() * -0.12
+        forwardVolts = CONTROL_DRIVE_FORWARD_AXIS.position() * -0.12 
 
         # Spin motors and combine controller axes
         leftMotorA.spin(REVERSE, forwardVolts + turnVolts, VOLT)
@@ -506,54 +496,22 @@ def thread_driveControl():
         rightMotorC.spin(FORWARD, forwardVolts - turnVolts, VOLT)
         sleep(5)
 
-def gifThread():
-    index = 1
-    while True:
-        wait(20, MSEC)
-        if gifState:
-            brain.screen.clear_screen()
+def user_control():
+    Thread(control_thread)
+    Thread(cosmetic_thread)
 
-            brain.screen.draw_image_from_file(("fractal (" + str(index) + ").png"), 0, 0)
-            if index < 60:
-                index += 1
-            else:
-                index = 1
-            brain.screen.render()
 
-def userControl():
-    Thread(gifThread)
-    Thread(thread_main)
-    Thread(thread_driveControl)
+selector = autonSelector("main")
+brain.screen.pressed(selector.onTouch)
 
-headlightLED.set(True)
-leftTurnLED.set(True)
-rightTurnLED.set(True)
-wait(0.5, SECONDS)
-headlightLED.set(False)
-leftTurnLED.set(False)
-rightTurnLED.set(False)
+selector.run()
 
-startup()
+# Competition bypass
+if selector.selected[0:4] == "skip":
+    if selector.selected == "skip_comp_driver":
+        user_control()
+    else:
+        auton()
 
-# Assign controller functions
-con.buttonR1.pressed(r1Pressed)
-con.buttonR2.pressed(r2Pressed)
-con.buttonA.pressed(toggleWings)
-con.buttonUp.pressed(lowerCata)
-con.buttonDown.pressed(toggleCata)
-con.buttonRight.pressed(rightWing)
-con.buttonLeft.pressed(leftWing)
-
-if selected == "skip_comp_driver": # skip competition for testing
-    userControl()
-elif selected == "skip_comp_close_auton":
-    selected = "close"
-    auton()
-elif selected == "skip_comp_far_auton":
-    selected = "friendly"
-    auton()
-elif selected == "skip_comp_skills_auton":
-    selected = "skills"
-    auton()
-
-comp = Competition(userControl, auton)
+comp = Competition(user_control, auton)
+# comp.is_field_control()
