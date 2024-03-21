@@ -1,18 +1,19 @@
 from vex import *
+
 #### Define generic ####
 brain = Brain()
 con = Controller(PRIMARY)
 
 #### Define Ports ####
-leftMotorA =  Motor(Ports.PORT7, GearSetting.RATIO_6_1, False)
-rightMotorA = Motor(Ports.PORT2, GearSetting.RATIO_6_1, False)
-leftMotorB =  Motor(Ports.PORT3, GearSetting.RATIO_6_1, False)
-rightMotorB = Motor(Ports.PORT4, GearSetting.RATIO_6_1, False)
-leftMotorC =  Motor(Ports.PORT5, GearSetting.RATIO_6_1, False)
-rightMotorC = Motor(Ports.PORT6, GearSetting.RATIO_6_1, False)
+leftMotorA =  Motor(Ports.PORT16, GearSetting.RATIO_6_1, False)
+rightMotorA = Motor(Ports.PORT17, GearSetting.RATIO_6_1, False)
+leftMotorB =  Motor(Ports.PORT11, GearSetting.RATIO_6_1, False)
+rightMotorB = Motor(Ports.PORT12, GearSetting.RATIO_6_1, False) 
+leftMotorC =  Motor(Ports.PORT18, GearSetting.RATIO_6_1, False)
+rightMotorC = Motor(Ports.PORT19, GearSetting.RATIO_6_1, False)
 
-intakeMotor = Motor(Ports.PORT17, GearSetting.RATIO_18_1, False)
-cataMotor =   Motor(Ports.PORT18, GearSetting.RATIO_36_1, True)
+intakeMotor = Motor(Ports.PORT15, GearSetting.RATIO_18_1, True)
+cataMotor =   Motor(Ports.PORT9, GearSetting.RATIO_36_1, False)
 inertialSens = Inertial(Ports.PORT19)
 threeWireExtender = Triport(Ports.PORT20)
 
@@ -46,9 +47,9 @@ drivetrain.set_timeout(2, SECONDS)
 
 #### Controls ####
 CONTROL_DRIVE_TURN_AXIS =    con.axis1 # used to turn the robot
-CONTROL_DRIVE_FORWARD_AXIS = con.axis3 # drives the robot forward (3 for normal, 2 for right)
-CONTROL_INTAKE_OUT =         con.buttonR1 # extakes
-CONTROL_INTAKE_IN =          con.buttonR2 # intakes
+CONTROL_DRIVE_FORWARD_AXIS = con.axis2 # drives the robot forward (3 for normal, 2 for right)
+CONTROL_INTAKE_OUT =         con.buttonR2 # extakes
+CONTROL_INTAKE_IN =          con.buttonR1 # intakes
 CONTROL_FULL_WINGS =         con.buttonA # toggles both wings
 CONTROL_LEFT_WING =          con.buttonLeft # toggles the left wing
 CONTROL_RIGHT_WING =         con.buttonRight # toggles the right wing
@@ -481,10 +482,12 @@ def control_thread():
     # Button Controls (button.pressed)
     CONTROL_INTAKE_IN.pressed(intake)
     CONTROL_INTAKE_OUT.pressed(extake)
+    CONTROL_CATA_LOWER.pressed(lowerCata)
+    CONTROL_CATA_TOGGLE.pressed(toggleCata)
 
     while True:
         # Convert controller axis to voltage levels
-        turnVolts = CONTROL_DRIVE_TURN_AXIS.position() * -0.12
+        turnVolts = CONTROL_DRIVE_TURN_AXIS.position() * -0.12 * 0.80
         forwardVolts = CONTROL_DRIVE_FORWARD_AXIS.position() * -0.12 
 
         # Spin motors and combine controller axes
