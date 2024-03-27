@@ -39,8 +39,8 @@ def calculate_odom(prev_left_enc: float, prev_right_enc: float, prev_heading: fl
     distance = (right_travel + left_travel) / 2
 
     # calculate delta_x and delta_y
-    delta_x = distance * math.cos(prev_heading + (delta_theta / 2))# * (180 / 3.14))
-    delta_y = distance * math.sin(prev_heading + (delta_theta / 2))# * (180 / 3.14))
+    delta_x = distance * math.cos(delta_theta)# * (180 / 3.14))
+    delta_y = distance * math.sin(delta_theta)# * (180 / 3.14))
 
     # apply offset to global position
     return (delta_x, delta_y, delta_theta, distance, (left_travel, right_travel))

@@ -2,17 +2,28 @@ from vex import *
 
 brain = Brain()
 
-leftMotorFront = Motor(Ports.PORT20, GearSetting.RATIO_18_1)
-leftMotorRear = Motor(Ports.PORT10, GearSetting.RATIO_18_1)
-leftMotorGroup = MotorGroup(leftMotorFront, leftMotorRear)
+leftMotorA =  Motor(Ports.PORT16, GearSetting.RATIO_6_1, False)
+rightMotorA = Motor(Ports.PORT17, GearSetting.RATIO_6_1, True)
+leftMotorB =  Motor(Ports.PORT11, GearSetting.RATIO_6_1, False)
+rightMotorB = Motor(Ports.PORT12, GearSetting.RATIO_6_1, True) 
+leftMotorC =  Motor(Ports.PORT18, GearSetting.RATIO_6_1, False)
+rightMotorC = Motor(Ports.PORT19, GearSetting.RATIO_6_1, True)
 
-rightMotorFront = Motor(Ports.PORT11, GearSetting.RATIO_18_1, True)
-rightMotorRear = Motor(Ports.PORT1, GearSetting.RATIO_18_1, True)
-rightMotorGroup = MotorGroup(rightMotorFront, rightMotorRear)
+# Create motor groups
+leftMotors =  MotorGroup(leftMotorA, leftMotorB, leftMotorC)
+rightMotors = MotorGroup(rightMotorA, rightMotorB, rightMotorC)
 
-centerEnc = Encoder(brain.three_wire_port.a)
-rightEnc = Encoder(brain.three_wire_port.c)
-leftEnc = Encoder(brain.three_wire_port.e)
+# leftMotorFront = Motor(Ports.PORT20, GearSetting.RATIO_18_1)
+# leftMotorRear = Motor(Ports.PORT10, GearSetting.RATIO_18_1)
+# leftMotorGroup = MotorGroup(leftMotorFront, leftMotorRear)
+
+# rightMotorFront = Motor(Ports.PORT11, GearSetting.RATIO_18_1, True)
+# rightMotorRear = Motor(Ports.PORT1, GearSetting.RATIO_18_1, True)
+# rightMotorGroup = MotorGroup(rightMotorFront, rightMotorRear)
+
+# centerEnc = Encoder(brain.three_wire_port.a)
+# rightEnc = Encoder(brain.three_wire_port.c)
+# leftEnc = Encoder(brain.three_wire_port.e)
 
 class pid():
     def __init__(self, KP, KD, KI, KI_MAX, MIN = None) -> None:
@@ -78,7 +89,7 @@ class Auton():
         self.right_sens = RIGHT_SENSOR
 
         print('''Auton initialized. 
-              \nBattery voltage at: " + str(brain.battery.capacity()) + "%"''')
+              \nBattery voltage at:''' + str(brain.battery.capacity()) + "%")
         if brain.battery.capacity() < 25: print("WARNING: battery below 25%")
 
     def forward(self, dist):
@@ -95,10 +106,9 @@ class Auton():
 
         # Handle distance calculations
 
-
         while pid_running:
-            currentLeftValue = -leftEnc.value()
-            currentRightValue = -rightEnc.value()
+            currentLeftValue = leftMotorA.position()
+            currentRightValue = rightMotorA.position()
 
             leftOutput = left_pid.calculate(dist, currentLeftValue)
             rightOutput = right_pid.calculate(dist, currentRightValue)
@@ -106,8 +116,8 @@ class Auton():
             pidHeadingError = currentLeftValue - currentRightValue
             headingOutput = heading_pid.calculate(0, pidHeadingError)
 
-            leftMotorGroup.spin(FORWARD, leftOutput + headingOutput)
-            rightMotorGroup.spin(FORWARD, rightOutput + headingOutput)
+            leftMotors.spin(FORWARD, leftOutput + headingOutput)
+            rightMotors.spin(FORWARD, rightOutput + headingOutput)
             
             if ((dist - self.DRIVE_TOLERANCE < abs(currentLeftValue) < dist + self.DRIVE_TOLERANCE) and 
                 (dist - self.DRIVE_TOLERANCE < abs(currentRightValue) < dist + self.DRIVE_TOLERANCE)):
@@ -118,5 +128,5 @@ class Auton():
         
         brain.screen.clear_screen()
 
-drivebase = Auton(LEFT_SENSOR=leftEnc, RIGHT_SENSOR=rightEnc)
-drivebase.forward(-700)
+drivebase = Auton(LEFT_SENSOR=leftMotorA, RIGHT_SENSOR=rightMotorA)
+drivebase.forward(200)
