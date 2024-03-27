@@ -73,11 +73,47 @@ CONTROL_CATA_TOGGLE =        con.buttonB # toggles the catapult
     # auton (based on selection)
     # driver control
 
-# def temp_logger():
-#     f = open('temps.csv', 'w')
-#     print("test, test, test", file=f)
-#     f.close()
-# Thread(temp_logger)
+###################################
+########### File Logger ###########
+###################################
+
+def log():
+    file = open("data/latest.txt", "a")
+    # Header: "time, L1 TEMP, L2 TEMP, L3 TEMP, R1 TEMP, R2 TEMP, R3 TEMP"
+    file.write(str(brain.timer.system()) + ", " +  str(leftMotorA.temperature()) + ", " 
+               +  str(leftMotorB.temperature()) + str(leftMotorC.temperature()) + ", " 
+               +  str(rightMotorA.temperature()) + ", " +  str(rightMotorB.temperature()) 
+               + ", " + str(rightMotorC.temperature()))
+    file.close()
+    brain.timer.event(log, 500)
+
+# File manipulation
+def temp_logger():
+    # get number of existing files from info.txt
+    info_file = open("data/info.txt", "r")
+    num_files = int(info_file.read())
+    info_file.close()
+
+    # open info and increment number of files
+    f = open("data/info.txt", "w")
+    f.write(str(num_files + 1))
+    f.close()
+
+    # get latest.txt and the new file for archiving
+    recent_file = open("data/latest.txt", "r")
+    new_file = open("data/" + str(num_files) + ".txt", "w")
+
+    # open new_file to write to it
+    new_file.write(recent_file.read())
+    recent_file.close()
+    new_file.close()
+
+    # clear latest.txt
+    f = open("data/latest.txt", "w")
+    f.write("time, L1 TEMP, L2 TEMP, L3 TEMP, R1 TEMP, R2 TEMP, R3 TEMP")
+    f.close()
+    # log data
+    log()
 
 ###################################
 #### Startup / Auton Selection ####
@@ -94,6 +130,7 @@ class autonSelector():
         self.touch_areas = []
         self.selecting = True
         self.screen_state = initial_screen
+        self.options = {"temp_logging": False, "test": False}
     
     def button(self, x: int, y: int, width: int, height: int, text: str, 
                color = Color(Color.BLACK), text_color = Color(Color.WHITE), 
@@ -140,7 +177,11 @@ class autonSelector():
             if (x < touch_x < x + width) and (y < touch_y < y + height): # if button is touched
                 print("Touched button with action", action)
                 if not end_selection:
-                    self.screen_state = action
+                    if action == "toggle_temps":
+                        self.options["temp_logging"] = not self.options["temp_logging"]
+                        print("Temp logging: " + str(self.options["temp_logging"]))
+                    else:
+                        self.screen_state = action
                 else:
                     brain.screen.clear_screen()
                     self.selecting = False
@@ -168,9 +209,13 @@ class autonSelector():
             self.button(190, 0, 190, 160, "Close (opponent)", Color(112, 0, 0), action = "close")
             self.button(380, 0, 100, 50, "Tools", Color(Color.BLACK), action = "tools", end_selection=False) # tools button
             self.button(380, 50, 100, 50, "SKILLS", Color(Color.WHITE), text_color = Color(Color.BLACK), action = "skills") # skills autonomous
+            self.button(380, 100, 100, 50, "Options", Color(Color.BLACK), text_color = Color(Color.WHITE), action = "options", end_selection=False) # skills autonomous
         if screen == "test":
             self.button(200, 100, 100, 50, "skip", action = "skip")
             self.button(200, 150, 100, 50, "None", action = None)
+        if screen == "options":
+            self.button(0, 0, 100, 50, "Main", action = "main", color = Color(82, 82, 82), end_selection=False)
+            self.button(0, 50, 300, 100, ("Temp Logging: " + str(self.options["temp_logging"])), action = "toggle_temps", end_selection=False)
         if screen == "tools":
             self.button(0, 0, 100, 50, "Main", action = "main", color = Color(82, 82, 82), end_selection=False)
             self.button(0, 50, 100, 190, "Thermals", color = Color(194, 146, 2), action = "thermals", end_selection=False)
@@ -196,6 +241,7 @@ class autonSelector():
             brain.screen.set_font(FontType.MONO30)
             brain.screen.print("SELECTED:", self.selected)
             brain.screen.new_line()
+            brain.screen.print("TEMP LOGGING:", self.options["temp_logging"])
         brain.screen.render()
 
     def run(self):
@@ -569,6 +615,15 @@ selector = autonSelector("main")
 brain.screen.pressed(selector.onTouch)
 
 selector.run()
+if selector.options["temp_logging"]:
+    if brain.sdcard.is_inserted():
+        print("Running with temp logging ENABLED")
+        Thread(temp_logger)
+    else:
+        print("SD Card not inserted")
+else:
+    print("Running with temp logging DISABLED")
+
 # Competition bypass
 if selector.selected[0:4] == "skip":
     if selector.selected == "skip_comp_driver":
