@@ -1,27 +1,8 @@
 #region VEXcode Generated Robot Configuration
 from vex import *
-import urandom
 
 # Brain should be defined by default
 brain=Brain()
-
-# Robot configuration code
-
-
-# wait for rotation sensor to fully initialize
-wait(30, MSEC)
-
-
-def play_vexcode_sound(sound_name):
-    # Helper to make playing sounds from the V5 in VEXcode easier and
-    # keeps the code cleaner by making it clear what is happening.
-    print("VEXPlaySound:" + sound_name)
-    wait(5, MSEC)
-
-# add a small delay to make sure we don't print in the middle of the REPL header
-wait(200, MSEC)
-# clear the console to make sure we don't have the REPL in the console
-print("\033[2J")
 
 #endregion VEXcode Generated Robot Configuration
 from vex import *
@@ -32,11 +13,11 @@ con = Controller(PRIMARY)
 
 #### Define Ports ####
 leftMotorA =  Motor(Ports.PORT16, GearSetting.RATIO_6_1, False)
-rightMotorA = Motor(Ports.PORT17, GearSetting.RATIO_6_1, False)
+rightMotorA = Motor(Ports.PORT17, GearSetting.RATIO_6_1, True)
 leftMotorB =  Motor(Ports.PORT11, GearSetting.RATIO_6_1, False)
-rightMotorB = Motor(Ports.PORT12, GearSetting.RATIO_6_1, False) 
+rightMotorB = Motor(Ports.PORT12, GearSetting.RATIO_6_1, True) 
 leftMotorC =  Motor(Ports.PORT18, GearSetting.RATIO_6_1, False)
-rightMotorC = Motor(Ports.PORT19, GearSetting.RATIO_6_1, False)
+rightMotorC = Motor(Ports.PORT19, GearSetting.RATIO_6_1, True)
 
 intakeMotor = Motor(Ports.PORT15, GearSetting.RATIO_18_1, True)
 cataMotor =   Motor(Ports.PORT9, GearSetting.RATIO_36_1, False)
@@ -64,8 +45,9 @@ while inertialSens.is_calibrating(): wait(50, MSEC)
 #### Drivetrain setup ####
 drivetrain = SmartDrive(leftMotors, rightMotors, inertialSens, (2.75 * 3.14) * 25.4, (10.13 * 25.4), (10.5 * 25.4), MM, 1)
 
-
 #### Variables ####
+front_wings_cooldown = 0
+back_wings_cooldown = 0
 
 #### Config ####
 drivetrain.set_drive_velocity(40, PERCENT)
@@ -77,19 +59,25 @@ CONTROL_DRIVE_TURN_AXIS =    con.axis1 # used to turn the robot
 CONTROL_DRIVE_FORWARD_AXIS = con.axis2 # drives the robot forward (3 for normal, 2 for right)
 CONTROL_INTAKE_OUT =         con.buttonR2 # extakes
 CONTROL_INTAKE_IN =          con.buttonR1 # intakes
-CONTROL_FRONT_WINGS =        con.buttonX # toggles front wings
-CONTROL_BACK_WINGS =         con.buttonUp # toggle back wings
+CONTROL_FRONT_WINGS =        con.axis3 # toggles front wings
+CONTROL_BACK_WINGS =         con.axis3 # toggle back wings
 CONTROL_BACK_LEFT_WING =     con.buttonLeft # toggles the left wing
 CONTROL_BACK_RIGHT_WING =    con.buttonRight # toggles the right wing
 CONTROL_FRONT_LEFT_WING =    con.buttonY # toggles the left wing
 CONTROL_FRONT_RIGHT_WING =   con.buttonA # toggles the right wing
-CONTROL_CATA_TOGGLE =        con.buttonDown # toggles the catapult
+CONTROL_CATA_TOGGLE =        con.buttonB # toggles the catapult
 
 ## overall flow: 
 # startup (screen & controller selection)
 # comp variable:
     # auton (based on selection)
     # driver control
+
+# def temp_logger():
+#     f = open('temps.csv', 'w')
+#     print("test, test, test", file=f)
+#     f.close()
+# Thread(temp_logger)
 
 ###################################
 #### Startup / Auton Selection ####
@@ -218,206 +206,209 @@ class autonSelector():
 ########## Autonomous #############
 ###################################
 
-
 def auton():    
     brain.timer.clear()
+    if isinstance(selector, autonSelector):
+        if selector.selected == "skip" or None:
+            return
 
-    if selector.selected == "skip" or None:
-        return
+        elif selector.selected == "skills" or selector.selected == "skip_comp_skills_auton":
+            inertialSens.reset_heading()
 
-    elif selector.selected == "skills" or selector.selected == "skip_comp_skills_auton":
-        inertialSens.reset_heading()
-        headlightLED.set(True)
-        leftTurnLED.set(True)
-        rightTurnLED.set(True)
+            drivetrain.set_timeout(2, SECONDS)
+            drivetrain.set_turn_constant(0.28)
+            drivetrain.set_turn_threshold(0.25)
 
-        drivetrain.set_timeout(2, SECONDS)
-        drivetrain.set_turn_constant(0.28)
-        drivetrain.set_turn_threshold(0.25)
+            drivetrain.stop(HOLD)
+            cataMotor.spin(FORWARD, 95)
+            wait(2, SECONDS) # normal 27
+            # while not cataLimit.pressing():
+            #     cataMotor.spin(FORWARD, 25, PERCENT)
+            cataMotor.stop(HOLD)
+            drivetrain.stop(COAST)
+            wait(0.1, SECONDS)
 
-        drivetrain.stop(HOLD)
-        cataMotor.spin(FORWARD, 95)
-        wait(27, SECONDS)
-        while not cataLimit.pressing():
-            cataMotor.spin(FORWARD, 25, PERCENT)
-        cataMotor.stop(HOLD)
-        drivetrain.stop(COAST)
-        wait(0.1, SECONDS)
+            drivetrain.turn_to_heading(90, DEGREES, 40, PERCENT)
+            print("Error: ", 90 - inertialSens.heading())
 
-        drivetrain.turn_to_heading(90, DEGREES, 40, PERCENT)
-        print("Error: ", 90 - inertialSens.heading())
+            drivetrain.drive_for(REVERSE, 700, MM, 50, PERCENT)
+            wait(0.2, SECONDS)
+            drivetrain.drive_for(FORWARD, 800, MM, 50, PERCENT)
 
-        drivetrain.drive_for(REVERSE, 700, MM, 50, PERCENT)
-        wait(0.2, SECONDS)
-        drivetrain.drive_for(FORWARD, 800, MM, 50, PERCENT)
+            intakeMotor.spin(FORWARD, 100, PERCENT)
+            wait(0.1, SECONDS)
+            drivetrain.turn_to_heading(32, DEGREES, 40, PERCENT)
+            print("Error: ", 32 - inertialSens.heading())
 
-        intakeMotor.spin(REVERSE, 100, PERCENT)
-        wait(0.1, SECONDS)
-        drivetrain.turn_to_heading(32, DEGREES, 40, PERCENT)
-        print("Error: ", 32 - inertialSens.heading())
+            drivetrain.drive_for(FORWARD, 2050, MM, 80, PERCENT)
 
-        drivetrain.drive_for(FORWARD, 2050, MM, 80, PERCENT)
+            intakeMotor.stop()
 
-        intakeMotor.stop()
+            wait(0.1, SECONDS)
+            drivetrain.turn_to_heading(0, DEGREES, 40, PERCENT)
+            print("Error: ", 0 - inertialSens.heading())
 
-        wait(0.1, SECONDS)
-        drivetrain.turn_to_heading(0, DEGREES, 40, PERCENT)
-        print("Error: ", 0 - inertialSens.heading())
+            drivetrain.drive_for(FORWARD, 650, MM, 50, PERCENT)
 
-        drivetrain.drive_for(FORWARD, 650, MM, 50, PERCENT)
+            drivetrain.turn_to_heading(310, DEGREES, 40, PERCENT)
+            print("Error: ", 310 - inertialSens.heading())
 
-        drivetrain.turn_to_heading(310, DEGREES, 40, PERCENT)
-        print("Error: ", 310 - inertialSens.heading())
+            intakeMotor.spin(REVERSE, 100, PERCENT)
+            drivetrain.drive_for(FORWARD, 400, MM, 50, PERCENT)
+            wait(0.2, SECONDS)
+            drivetrain.drive_for(REVERSE, 200, MM, 50, PERCENT)
+            intakeMotor.stop()
+            wait(0.1, SECONDS)
+            drivetrain.turn_to_heading(235, DEGREES, 40, PERCENT)
+            print("Error: ", 235 - inertialSens.heading())
 
-        intakeMotor.spin(FORWARD, 100, PERCENT)
-        drivetrain.drive_for(FORWARD, 400, MM, 50, PERCENT)
-        wait(0.2, SECONDS)
-        drivetrain.drive_for(REVERSE, 200, MM, 50, PERCENT)
-        intakeMotor.stop()
-        wait(0.1, SECONDS)
-        drivetrain.turn_to_heading(235, DEGREES, 40, PERCENT)
-        print("Error: ", 235 - inertialSens.heading())
+            drivetrain.drive_for(FORWARD, 1200, MM, 60, PERCENT)
+            wait(0.1, SECONDS)
 
-        drivetrain.drive_for(FORWARD, 1200, MM, 60, PERCENT)
-        wait(0.1, SECONDS)
+            drivetrain.turn_to_heading(0, DEGREES, 40, PERCENT)
+            print("Error: ", 0 - inertialSens.heading())
 
-        drivetrain.turn_to_heading(0, DEGREES, 40, PERCENT)
-        print("Error: ", 0 - inertialSens.heading())
+            frontLeftWingPiston.set(True)
+            frontRightWingPiston.set(True)
+            wait(0.2, SECONDS)
+            intakeMotor.spin(REVERSE, 100, PERCENT)
+            drivetrain.drive_for(FORWARD, 900, MM, 70, PERCENT) # Front push into goal
 
-        frontLeftWingPiston.set(True)
-        frontRightWingPiston.set(True)
-        wait(0.2, SECONDS)
-        intakeMotor.spin(FORWARD, 100, PERCENT)
-        drivetrain.drive_for(FORWARD, 900, MM, 70, PERCENT) # Front push into goal
+            frontLeftWingPiston.set(False)
+            frontRightWingPiston.set(False)
+            intakeMotor.stop()
+            drivetrain.drive_for(REVERSE, 600, MM, 70, PERCENT)
+            wait(0.1, SECONDS)
 
-        frontLeftWingPiston.set(False)
-        frontRightWingPiston.set(False)
-        intakeMotor.stop()
-        drivetrain.drive_for(REVERSE, 600, MM, 70, PERCENT)
-        wait(0.1, SECONDS)
+            frontLeftWingPiston.set(True)
+            frontRightWingPiston.set(True)
+            intakeMotor.spin(REVERSE, 100, PERCENT)
+            drivetrain.drive_for(FORWARD, 900, MM, 70, PERCENT) # Front push into goal
 
-        frontLeftWingPiston.set(True)
-        frontRightWingPiston.set(True)
-        intakeMotor.spin(FORWARD, 100, PERCENT)
-        drivetrain.drive_for(FORWARD, 900, MM, 70, PERCENT) # Front push into goal
+            frontLeftWingPiston.set(False)
+            frontRightWingPiston.set(False)
+            intakeMotor.stop()
+            wait(0.1, SECONDS)
+            drivetrain.drive_for(REVERSE, 700, MM, 70, PERCENT)
 
-        frontLeftWingPiston.set(False)
-        frontRightWingPiston.set(False)
-        intakeMotor.stop()
-        wait(0.1, SECONDS)
-        drivetrain.drive_for(REVERSE, 700, MM, 70, PERCENT)
+            drivetrain.turn_to_heading(295, DEGREES, 40, PERCENT)
+            print("Error: ", 20 - inertialSens.heading())
+                
+            drivetrain.drive_for(FORWARD, 1000, MM, 70, PERCENT)
+            drivetrain.turn_to_heading(80, DEGREES, 40, PERCENT)
+            frontLeftWingPiston.set(True)
+            frontRightWingPiston.set(True)
+            wait(0.1, SECONDS)
+            drivetrain.drive_for(FORWARD, 600, MM , 70, PERCENT)
+            drivetrain.turn_to_heading(50, DEGREES)
+            wait(0.1, SECONDS)
+            intakeMotor.spin(REVERSE, 100, PERCENT)
+            wait(0.2, SECONDS)
+            drivetrain.drive_for(FORWARD, 500, MM , 70, PERCENT)
+            wait(0.2, SECONDS)
+            drivetrain.drive_for(REVERSE, 200, MM , 70, PERCENT)
+            wait(0.2, SECONDS)
+            intakeMotor.stop()
+            frontLeftWingPiston.set(False)
+            frontRightWingPiston.set(False)
 
-        drivetrain.turn_to_heading(295, DEGREES, 40, PERCENT)
-        print("Error: ", 20 - inertialSens.heading())
-            
-        drivetrain.drive_for(FORWARD, 1000, MM, 70, PERCENT)
-        drivetrain.turn_to_heading(80, DEGREES, 40, PERCENT)
-        frontLeftWingPiston.set(True)
-        frontRightWingPiston.set(True)
-        wait(0.1, SECONDS)
-        drivetrain.drive_for(FORWARD, 600, MM , 70, PERCENT)
-        drivetrain.turn_to_heading(50, DEGREES)
-        wait(0.1, SECONDS)
-        intakeMotor.spin(FORWARD, 100, PERCENT)
-        wait(0.2, SECONDS)
-        drivetrain.drive_for(FORWARD, 500, MM , 70, PERCENT)
-        wait(0.2, SECONDS)
-        drivetrain.drive_for(REVERSE, 200, MM , 70, PERCENT)
+            print("Inertial heading: ", inertialSens.heading())
+            con.screen.print(inertialSens.heading())
+            print("Remaining time: ", 60 - brain.timer.time(SECONDS) - 28, "s")
 
-        print("Inertial heading: ", inertialSens.heading())
-        con.screen.print(inertialSens.heading())
-        print("Remaining time: ", 60 - brain.timer.time(SECONDS) - 28, "s")
+        elif selector.selected == "close" or selector.selected == "skip_comp_close_auton":
+            drivetrain.set_timeout(2, SECONDS)
+            drivetrain.set_turn_constant(0.28)
+            drivetrain.set_turn_threshold(0.25)
+            cataMotor.spin(FORWARD, 100)
+            wait(.5,SECONDS)
+            cataMotor.stop()
+            drivetrain.turn_for(RIGHT, 115, DEGREES, 10, PERCENT) # Turn right to setup to pull triball out of match load
+            frontRightWingPiston.set(True) # Lower wing to shove triball
+            wait(0.3, SECONDS) # Wait for wing to lower
+            drivetrain.turn_for(LEFT, 90, DEGREES, 20, PERCENT) # Turn to shove triball out of match load area
+            frontRightWingPiston.set(False) # Retract wing to not clip wall
+            wait(0.5, SECONDS) # Wait for wing retraction
+            drivetrain.turn_to_heading(50, DEGREES)
+            drivetrain.drive_for(FORWARD, 270, MM) # 
+            drivetrain.turn_to_heading(30, DEGREES) # Turn to adjust for underpass
+            intakeMotor.spin(FORWARD, 100, PERCENT)
+            drivetrain.drive_for(FORWARD, 630, MM) #
+            drivetrain.drive_for(FORWARD, 20, MM, 10, PERCENT)
+            wait(3, SECONDS)
+            intakeMotor.stop()
 
-    elif selector.selected == "close" or selector.selected == "skip_comp_close_auton":
-        drivetrain.set_timeout(2, SECONDS)
-        drivetrain.set_turn_constant(0.28)
-        drivetrain.set_turn_threshold(0.25)
-        cataMotor.spin(FORWARD, 100)
-        wait(.5,SECONDS)
-        cataMotor.stop()
-        drivetrain.turn_for(RIGHT, 115, DEGREES, 10, PERCENT) # Turn right to setup to pull triball out of match load
-        frontRightWingPiston.set(True) # Lower wing to shove triball
-        wait(0.3, SECONDS) # Wait for wing to lower
-        drivetrain.turn_for(LEFT, 90, DEGREES, 20, PERCENT) # Turn to shove triball out of match load area
-        frontRightWingPiston.set(False) # Retract wing to not clip wall
-        wait(0.5, SECONDS) # Wait for wing retraction
-        drivetrain.turn_to_heading(50, DEGREES)
-        drivetrain.drive_for(FORWARD, 270, MM) # 
-        drivetrain.turn_to_heading(30, DEGREES) # Turn to adjust for underpass
-        intakeMotor.spin(FORWARD, 100, PERCENT)
-        drivetrain.drive_for(FORWARD, 630, MM) #
-        drivetrain.drive_for(FORWARD, 20, MM, 10, PERCENT)
-        wait(3, SECONDS)
-        intakeMotor.stop()
+        elif selector.selected == "far" or selector.selected == "skip_comp_far_auton":
+            drivetrain.set_timeout(2, SECONDS)
+            drivetrain.set_turn_constant(0.28)
+            drivetrain.set_turn_threshold(.5)
+            drivetrain.set_turn_velocity(50, PERCENT)
+            drivetrain.set_drive_velocity(60, PERCENT)
 
-    elif selector.selected == "far" or selector.selected == "skip_comp_far_auton":
-        drivetrain.set_timeout(2, SECONDS)
-        drivetrain.set_turn_constant(0.28)
-        drivetrain.set_turn_threshold(.5)
-        drivetrain.set_turn_velocity(50, PERCENT)
-        drivetrain.set_drive_velocity(60, PERCENT)
+            drivetrain.drive_for(FORWARD, 100, MM)
+            frontRightWingPiston.set(True)
+            wait(.6, SECONDS)
+            drivetrain.drive_for(FORWARD, 380, MM, 30, PERCENT)
 
-        drivetrain.drive_for(FORWARD, 100, MM)
-        frontRightWingPiston.set(True)
-        wait(.6, SECONDS)
-        drivetrain.drive_for(FORWARD, 380, MM, 30, PERCENT)
-
-        frontRightWingPiston.set(False)
-        drivetrain.turn_for(LEFT, 50, DEGREES)
-        drivetrain.turn_for(LEFT, 150, DEGREES)
-        drivetrain.drive_for(REVERSE, 600, MM, 100, PERCENT)
-        drivetrain.drive_for(FORWARD, 240, MM)
-        drivetrain.turn_to_heading(237, DEGREES)
-        intakeMotor.spin(REVERSE, 100, PERCENT)
-        drivetrain.drive_for(FORWARD, 1200, MM, 70, PERCENT)
-        drivetrain.turn_to_heading(0, DEGREES)
-        intakeMotor.spin(FORWARD, 120, PERCENT)
-        drivetrain.drive_for(FORWARD, 300, MM, 50, PERCENT)
-        drivetrain.turn_to_heading(272, DEGREES)
-        intakeMotor.spin(REVERSE, 100, PERCENT)
-        drivetrain.drive_for(FORWARD, 650, MM, 80, PERCENT)
-        drivetrain.turn_to_heading(45, DEGREES)
-        frontLeftWingPiston.set(True)
-        frontRightWingPiston.set(True)
-        intakeMotor.spin(FORWARD, 100, PERCENT)
-        drivetrain.drive_for(FORWARD, 1200, MM, 100, PERCENT)
-        drivetrain.drive_for(REVERSE, 200, MM)
-        intakeMotor.stop()
+            frontRightWingPiston.set(False)
+            drivetrain.turn_for(LEFT, 50, DEGREES)
+            drivetrain.turn_for(LEFT, 150, DEGREES)
+            drivetrain.drive_for(REVERSE, 600, MM, 100, PERCENT)
+            drivetrain.drive_for(FORWARD, 240, MM)
+            drivetrain.turn_to_heading(237, DEGREES)
+            intakeMotor.spin(REVERSE, 100, PERCENT)
+            drivetrain.drive_for(FORWARD, 1200, MM, 70, PERCENT)
+            drivetrain.turn_to_heading(0, DEGREES)
+            intakeMotor.spin(FORWARD, 120, PERCENT)
+            drivetrain.drive_for(FORWARD, 300, MM, 50, PERCENT)
+            drivetrain.turn_to_heading(272, DEGREES)
+            intakeMotor.spin(REVERSE, 100, PERCENT)
+            drivetrain.drive_for(FORWARD, 650, MM, 80, PERCENT)
+            drivetrain.turn_to_heading(45, DEGREES)
+            frontLeftWingPiston.set(True)
+            frontRightWingPiston.set(True)
+            intakeMotor.spin(FORWARD, 100, PERCENT)
+            drivetrain.drive_for(FORWARD, 1200, MM, 100, PERCENT)
+            drivetrain.drive_for(REVERSE, 200, MM)
+            intakeMotor.stop()
 
 
-        # intakeMotor.spin(REVERSE, 100, PERCENT)
-        # wait(.5,SECONDS)
-        # drivetrain.drive_for(FORWARD, 90, MM)
-        # wait(.2,SECONDS)
-        # drivetrain.drive_for(REVERSE, 110, MM)
-        # drivetrain.turn_to_heading(170, DEGREES)
-        # intakeMotor.stop()
-        # drivetrain.drive_for(FORWARD, 850, MM, 100, PERCENT)
-        # drivetrain.turn_to_heading(135, DEGREES)
-        # frontRightWingPiston.set(True)
-        # intakeMotor.spin(FORWARD, 100, PERCENT)
-        # drivetrain.drive_for(FORWARD, 550, MM)
-        # drivetrain.turn_for(LEFT, 200, DEGREES)
-        # frontRightWingPiston.set(False)
-        # drivetrain.drive_for(REVERSE, 400, MM, 60, PERCENT)
-        # intakeMotor.stop()
-        # drivetrain.drive_for(FORWARD, 300, MM, 60, PERCENT)
+            # intakeMotor.spin(REVERSE, 100, PERCENT)
+            # wait(.5,SECONDS)
+            # drivetrain.drive_for(FORWARD, 90, MM)
+            # wait(.2,SECONDS)
+            # drivetrain.drive_for(REVERSE, 110, MM)
+            # drivetrain.turn_to_heading(170, DEGREES)
+            # intakeMotor.stop()
+            # drivetrain.drive_for(FORWARD, 850, MM, 100, PERCENT)
+            # drivetrain.turn_to_heading(135, DEGREES)
+            # frontRightWingPiston.set(True)
+            # intakeMotor.spin(FORWARD, 100, PERCENT)
+            # drivetrain.drive_for(FORWARD, 550, MM)
+            # drivetrain.turn_for(LEFT, 200, DEGREES)
+            # frontRightWingPiston.set(False)
+            # drivetrain.drive_for(REVERSE, 400, MM, 60, PERCENT)
+            # intakeMotor.stop()
+            # drivetrain.drive_for(FORWARD, 300, MM, 60, PERCENT)
 
-        # drivetrain.turn_to_heading(238, DEGREES)
-        # intakeMotor.spin(REVERSE, 100, PERCENT)
-        # drivetrain.drive_for(FORWARD, 1550, MM, 60, PERCENT)
-        # drivetrain.turn_to_heading(15, DEGREES)
-        # intakeMotor.spin(FORWARD, 100, PERCENT)
-        # drivetrain.drive_for(FORWARD, 300, MM)
-        # drivetrain.turn_to_heading(38, DEGREES)
-        # intakeMotor.spin(REVERSE, 100, PERCENT)
-        # drivetrain.drive_for(FORWARD, 700, MM)
-        # drivetrain.turn_to_rotation(180, DEGREES)
-        # frontRightWingPiston.set(True)
-        # frontLeftWingPiston.set(True)
-        # intakeMotor.spin(FORWARD, 100, PERCENT)
-        # drivetrain.drive_for(FORWARD, 900, MM)
-        # drivetrain.drive_for(REVERSE, 200, MM)
+            # drivetrain.turn_to_heading(238, DEGREES)
+            # intakeMotor.spin(REVERSE, 100, PERCENT)
+            # drivetrain.drive_for(FORWARD, 1550, MM, 60, PERCENT)
+            # drivetrain.turn_to_heading(15, DEGREES)
+            # intakeMotor.spin(FORWARD, 100, PERCENT)
+            # drivetrain.drive_for(FORWARD, 300, MM)
+            # drivetrain.turn_to_heading(38, DEGREES)
+            # intakeMotor.spin(REVERSE, 100, PERCENT)
+            # drivetrain.drive_for(FORWARD, 700, MM)
+            # drivetrain.turn_to_rotation(180, DEGREES)
+            # frontRightWingPiston.set(True)
+            # frontLeftWingPiston.set(True)
+            # intakeMotor.spin(FORWARD, 100, PERCENT)
+            # drivetrain.drive_for(FORWARD, 900, MM)
+            # drivetrain.drive_for(REVERSE, 200, MM)
+
+        elif selector.selected == "test":
+            drivetrain.drive_for(FORWARD, 600, MM, 20, PERCENT)
 
     print("Time taken:", brain.timer.value(), "s")
 
@@ -438,10 +429,12 @@ Ex.
 #region controls
 
 def toggleCata():
-    if not cataMotor.is_spinning():
+    if cataMotor.command() == 0:
+        print("spin cata")
         cataMotor.spin(FORWARD, 100, PERCENT)
     else:
-        cataMotor.stop(HOLD)
+        cataMotor.stop(COAST)
+        print("stop cata")
 
 def toggleFrontWings():
     if frontRightWingPiston.value() == True or frontLeftWingPiston.value() == True:
@@ -497,7 +490,31 @@ def hold_buttons():
     This is where all the controls go that are simply 
     "if this button is actively pressed, do this"
     '''
-    pass
+    # global front_wings_cooldown
+    # if front_wings_cooldown > 0: front_wings_cooldown -= 1
+    # if CONTROL_FRONT_WINGS.position() > 10 and front_wings_cooldown == 0:
+    #     if frontLeftWingPiston.value():
+    #         frontLeftWingPiston.set(False)
+    #         frontRightWingPiston.set(False)
+    #     else:
+    #         frontLeftWingPiston.set(True)
+    #         frontRightWingPiston.set(True)
+    #     front_wings_cooldown = 30
+    # print(front_wings_cooldown)
+    if CONTROL_FRONT_WINGS.position() > 10:
+        frontLeftWingPiston.set(True)
+        frontRightWingPiston.set(True)
+    else:
+        frontLeftWingPiston.set(False)
+        frontRightWingPiston.set(False)
+
+    if CONTROL_BACK_WINGS.position() < -10:
+        backLeftWingPiston.set(True)
+        backRightWingPiston.set(True)
+    else:
+        backLeftWingPiston.set(False)
+        backRightWingPiston.set(False)
+        
 
 # Main threads
 def cosmetic_thread():
@@ -516,39 +533,42 @@ def control_thread():
     CONTROL_INTAKE_IN.pressed(intake)
     CONTROL_INTAKE_OUT.pressed(extake)
     CONTROL_CATA_TOGGLE.pressed(toggleCata)
-    CONTROL_FRONT_WINGS.pressed(toggleFrontWings)
-    CONTROL_BACK_WINGS.pressed(toggleBackWings)
+    # CONTROL_FRONT_WINGS.pressed(toggleFrontWings)
+    # CONTROL_BACK_WINGS.pressed(toggleBackWings)
     CONTROL_BACK_LEFT_WING.pressed(backLeftWing) 
     CONTROL_BACK_RIGHT_WING.pressed(backRightWing) 
     CONTROL_FRONT_LEFT_WING.pressed(frontLeftWing)
     CONTROL_FRONT_RIGHT_WING.pressed(frontRightWing)
 
-
     while True:
         # Convert controller axis to voltage levels
-        turnVolts = CONTROL_DRIVE_TURN_AXIS.position() * -0.12 * 0.80
-        forwardVolts = CONTROL_DRIVE_FORWARD_AXIS.position() * -0.12 
+        turnVolts = CONTROL_DRIVE_TURN_AXIS.position() * 0.12
+        # turnVolts = CONTROL_DRIVE_FORWARD_AXIS.position() * -0.12 * 0.75
+        forwardVolts = CONTROL_DRIVE_FORWARD_AXIS.position() * 0.12
+        # if CONTROL_DRIVE_FORWARD_AXIS.position() > 90:
+        #     forwardVolts = CONTROL_DRIVE_FORWARD_AXIS.position() * -0.12 * 0.9
 
         # Spin motors and combine controller axes
-        leftMotorA.spin(REVERSE, forwardVolts + turnVolts, VOLT)
-        leftMotorB.spin(REVERSE, forwardVolts + turnVolts, VOLT)
-        leftMotorC.spin(REVERSE, forwardVolts + turnVolts, VOLT)
+        leftMotorA.spin(FORWARD, forwardVolts + turnVolts, VOLT)
+        leftMotorB.spin(FORWARD, forwardVolts + turnVolts, VOLT)
+        leftMotorC.spin(FORWARD, forwardVolts + turnVolts, VOLT)
         rightMotorA.spin(FORWARD, forwardVolts - turnVolts, VOLT)
         rightMotorB.spin(FORWARD, forwardVolts - turnVolts, VOLT)
         rightMotorC.spin(FORWARD, forwardVolts - turnVolts, VOLT)
+
+        hold_buttons()
+
         sleep(5)
 
 def user_control():
     Thread(control_thread)
     Thread(cosmetic_thread)
 
-
 selector = autonSelector("main")
-user_control()
+# # user_control()
 brain.screen.pressed(selector.onTouch)
 
 selector.run()
-
 # Competition bypass
 if selector.selected[0:4] == "skip":
     if selector.selected == "skip_comp_driver":
@@ -557,4 +577,3 @@ if selector.selected[0:4] == "skip":
         auton()
 
 comp = Competition(user_control, auton)
-# comp.is_field_control()
