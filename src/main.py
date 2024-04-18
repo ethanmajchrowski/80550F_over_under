@@ -13,7 +13,7 @@ con = Controller(PRIMARY)
 
 #### Define Ports ####
 leftMotorA =  Motor(Ports.PORT16, GearSetting.RATIO_6_1, False)
-rightMotorA = Motor(Ports.PORT17, GearSetting.RATIO_6_1, True)
+rightMotorA = Motor(Ports.PORT20, GearSetting.RATIO_6_1, True)
 leftMotorB =  Motor(Ports.PORT11, GearSetting.RATIO_6_1, False)
 rightMotorB = Motor(Ports.PORT12, GearSetting.RATIO_6_1, True) 
 leftMotorC =  Motor(Ports.PORT18, GearSetting.RATIO_6_1, False)
@@ -21,7 +21,7 @@ rightMotorC = Motor(Ports.PORT19, GearSetting.RATIO_6_1, True)
 
 intakeMotor = Motor(Ports.PORT15, GearSetting.RATIO_18_1, True)
 cataMotor =   Motor(Ports.PORT9, GearSetting.RATIO_36_1, False)
-inertialSens = Inertial(Ports.PORT14)
+inertialSens = Inertial(Ports.PORT13)
 threeWireExtender = Triport(Ports.PORT8)
 
 # Create motor groups
@@ -56,15 +56,11 @@ drivetrain.set_timeout(2, SECONDS)
 
 #### Controls ####
 CONTROL_DRIVE_TURN_AXIS =    con.axis1 # used to turn the robot
-CONTROL_DRIVE_FORWARD_AXIS = con.axis2 # drives the robot forward (3 for normal, 2 for right)
+CONTROL_DRIVE_FORWARD_AXIS = con.axis2 # drives the robot forward (3 for normal, 2 for right stick only)
 CONTROL_INTAKE_OUT =         con.buttonR2 # extakes
 CONTROL_INTAKE_IN =          con.buttonR1 # intakes
-CONTROL_FRONT_WINGS =        con.axis3 # toggles front wings
-CONTROL_BACK_WINGS =         con.axis3 # toggle back wings
-CONTROL_BACK_LEFT_WING =     con.buttonLeft # toggles the left wing
-CONTROL_BACK_RIGHT_WING =    con.buttonRight # toggles the right wing
-CONTROL_FRONT_LEFT_WING =    con.buttonY # toggles the left wing
-CONTROL_FRONT_RIGHT_WING =   con.buttonA # toggles the right wing
+CONTROL_FRONT_WINGS =        con.buttonA # toggles front wings
+CONTROL_BACK_WINGS =         con.buttonX # toggle back wings
 CONTROL_CATA_TOGGLE =        con.buttonB # toggles the catapult
 
 ## overall flow: 
@@ -80,12 +76,16 @@ CONTROL_CATA_TOGGLE =        con.buttonB # toggles the catapult
 def log():
     file = open("data/latest.txt", "a")
     # Header: "time, L1 TEMP, L2 TEMP, L3 TEMP, R1 TEMP, R2 TEMP, R3 TEMP"
-    file.write(str(brain.timer.system()) + ", " +  str(leftMotorA.temperature()) + ", " 
-               +  str(leftMotorB.temperature()) + str(leftMotorC.temperature()) + ", " 
-               +  str(rightMotorA.temperature()) + ", " +  str(rightMotorB.temperature()) 
-               + ", " + str(rightMotorC.temperature()))
+    # file.write("\n" + str(brain.timer.system()) + ", " +  str(leftMotorA.temperature()) + ", " 
+    #            +  str(leftMotorB.temperature()) + ", " + str(leftMotorC.temperature()) + ", " 
+    #            +  str(rightMotorA.temperature()) + ", " +  str(rightMotorB.temperature()) 
+    #            + ", " + str(rightMotorC.temperature())) # TEMPS
+    file.write("\n" + str(brain.timer.system()) + ", " +  str(leftMotorA.velocity()) + ", " 
+               +  str(leftMotorB.velocity()) + ", " + str(leftMotorC.velocity()) + ", " 
+               +  str(rightMotorA.velocity()) + ", " +  str(rightMotorB.velocity()) 
+               + ", " + str(rightMotorC.velocity())) # TEMPS
     file.close()
-    brain.timer.event(log, 500)
+    brain.timer.event(log, 15)
 
 # File manipulation
 def temp_logger():
@@ -110,7 +110,8 @@ def temp_logger():
 
     # clear latest.txt
     f = open("data/latest.txt", "w")
-    f.write("time, L1 TEMP, L2 TEMP, L3 TEMP, R1 TEMP, R2 TEMP, R3 TEMP")
+    # f.write("time, L1 TEMP, L2 TEMP, L3 TEMP, R1 TEMP, R2 TEMP, R3 TEMP")
+    f.write("time, L1 VOLT, L2 VOLT, L3 VOLT, R1 VOLT, R2 VOLT, R3 VOLT")
     f.close()
     # log data
     log()
@@ -223,6 +224,7 @@ class autonSelector():
             self.button(200, 50, 100, 190, "Close", color = Color(82, 82, 82), action = "skip_comp_close_auton")
             self.button(300, 50, 100, 190, "Far", color = Color(82, 82, 82), action = "skip_comp_far_auton")
             self.button(400, 50, 100, 190, "Skills", color = Color(82, 82, 82), action = "skip_comp_skills_auton")
+            self.button(100, 0, 200, 50, "Test Auton", color = Color(0, 0, 0), action = "skip_test")
         if screen == "thermals":
             self.button(0, 0, 100, 30, "Main", action = "main", color = Color(82, 82, 82), end_selection=False)
 
@@ -233,15 +235,20 @@ class autonSelector():
             self.button(0, 190, 240, 40, ("Intake: " + str(intakeMotor.temperature())))# left 5
 
             self.button(240, 30, 240, 40, ("Catapult: " + str(cataMotor.temperature()))) # right 1
-            # self.button(240, 110, 240, 40, "None: 55*C")# right 3
-            # self.button(240, 150, 240, 40, "None: 55*C")# right 4
+            self.button(240, 110, 240, 40, "Left C: " + str(leftMotorC.temperature()))# right 3
+            self.button(240, 150, 240, 40, "Right C: " + str(rightMotorC.temperature()))# right 4
             # self.button(240, 190, 240, 40, "motor: 55*C")# right 5
         elif screen == "completed":
             brain.screen.set_cursor(1,1)
             brain.screen.set_font(FontType.MONO30)
             brain.screen.print("SELECTED:", self.selected)
             brain.screen.new_line()
-            brain.screen.print("TEMP LOGGING:", self.options["temp_logging"])
+            if self.options["temp_logging"] and brain.sdcard.is_inserted():
+                brain.screen.print("TEMP LOGGING:", self.options["temp_logging"])
+            elif self.options["temp_logging"]:
+                brain.screen.print("ERROR TEMP LOGGING NO SD CARD")
+            else:
+                brain.screen.print("NOT TEMP LOGGING")
         brain.screen.render()
 
     def run(self):
@@ -366,22 +373,24 @@ def auton():
             drivetrain.set_timeout(2, SECONDS)
             drivetrain.set_turn_constant(0.28)
             drivetrain.set_turn_threshold(0.25)
+
             cataMotor.spin(FORWARD, 100)
-            wait(.5,SECONDS)
-            cataMotor.stop()
-            drivetrain.turn_for(RIGHT, 115, DEGREES, 10, PERCENT) # Turn right to setup to pull triball out of match load
-            frontRightWingPiston.set(True) # Lower wing to shove triball
+            wait(2,SECONDS)
+            cataMotor.stop(COAST)
+
+            drivetrain.turn_for(RIGHT, 110, DEGREES, 10, PERCENT) # Turn right to setup to pull triball out of match load
+            backRightWingPiston.set(True) # Lower wing to shove triball
             wait(0.3, SECONDS) # Wait for wing to lower
-            drivetrain.turn_for(LEFT, 90, DEGREES, 20, PERCENT) # Turn to shove triball out of match load area
-            frontRightWingPiston.set(False) # Retract wing to not clip wall
+            drivetrain.turn_for(LEFT, 120, DEGREES, 30, PERCENT) # Turn to shove triball out of match load area
+            backRightWingPiston.set(False) # Retract wing to not clip wall
             wait(0.5, SECONDS) # Wait for wing retraction
-            drivetrain.turn_to_heading(50, DEGREES)
+            drivetrain.turn_to_heading(40, DEGREES)
             drivetrain.drive_for(FORWARD, 270, MM) # 
             drivetrain.turn_to_heading(30, DEGREES) # Turn to adjust for underpass
-            intakeMotor.spin(FORWARD, 100, PERCENT)
-            drivetrain.drive_for(FORWARD, 630, MM) #
+            intakeMotor.spin(REVERSE, 100, PERCENT)
+            drivetrain.drive_for(FORWARD, 600, MM) #
             drivetrain.drive_for(FORWARD, 20, MM, 10, PERCENT)
-            wait(3, SECONDS)
+            wait(1, SECONDS)
             intakeMotor.stop()
 
         elif selector.selected == "far" or selector.selected == "skip_comp_far_auton":
@@ -391,33 +400,37 @@ def auton():
             drivetrain.set_turn_velocity(50, PERCENT)
             drivetrain.set_drive_velocity(60, PERCENT)
 
+            # initial position is the back of the robot 3 in off the pipe
+            # drive forwards and grab triball out of corner
             drivetrain.drive_for(FORWARD, 100, MM)
-            frontRightWingPiston.set(True)
+            backRightWingPiston.set(True)
             wait(.6, SECONDS)
+            intakeMotor.spin(REVERSE, 100, PERCENT)
             drivetrain.drive_for(FORWARD, 380, MM, 30, PERCENT)
-
-            frontRightWingPiston.set(False)
+            backRightWingPiston.set(False) 
             drivetrain.turn_for(LEFT, 50, DEGREES)
+            intakeMotor.stop()
+
             drivetrain.turn_for(LEFT, 150, DEGREES)
             drivetrain.drive_for(REVERSE, 600, MM, 100, PERCENT)
             drivetrain.drive_for(FORWARD, 240, MM)
-            drivetrain.turn_to_heading(237, DEGREES)
-            intakeMotor.spin(REVERSE, 100, PERCENT)
+            drivetrain.turn_to_heading(237, DEGREES) # Adjust
+            intakeMotor.spin(FORWARD, 100, PERCENT)
             drivetrain.drive_for(FORWARD, 1200, MM, 70, PERCENT)
             drivetrain.turn_to_heading(0, DEGREES)
-            intakeMotor.spin(FORWARD, 120, PERCENT)
+            intakeMotor.spin(REVERSE, 100, PERCENT)
             drivetrain.drive_for(FORWARD, 300, MM, 50, PERCENT)
             drivetrain.turn_to_heading(272, DEGREES)
-            intakeMotor.spin(REVERSE, 100, PERCENT)
-            drivetrain.drive_for(FORWARD, 650, MM, 80, PERCENT)
+            intakeMotor.spin(FORWARD, 100, PERCENT)
+            drivetrain.drive_for(FORWARD, 400, MM, 60, PERCENT) # need to drive less to avoid hopping the bar
             drivetrain.turn_to_heading(45, DEGREES)
+            intakeMotor.spin(REVERSE, 100, PERCENT)
             frontLeftWingPiston.set(True)
             frontRightWingPiston.set(True)
-            intakeMotor.spin(FORWARD, 100, PERCENT)
-            drivetrain.drive_for(FORWARD, 1200, MM, 100, PERCENT)
-            drivetrain.drive_for(REVERSE, 200, MM)
+            drivetrain.drive_for(FORWARD, 1000, MM, 75, PERCENT)
             intakeMotor.stop()
-
+            frontLeftWingPiston.set(False)
+            frontRightWingPiston.set(False)
 
             # intakeMotor.spin(REVERSE, 100, PERCENT)
             # wait(.5,SECONDS)
@@ -453,8 +466,29 @@ def auton():
             # drivetrain.drive_for(FORWARD, 900, MM)
             # drivetrain.drive_for(REVERSE, 200, MM)
 
-        elif selector.selected == "test":
-            drivetrain.drive_for(FORWARD, 600, MM, 20, PERCENT)
+        elif selector.selected == "skip_test" or selector.selected == "test":
+            # auton logging
+            f = open("auton.txt", "r")
+            file_lines = f.readlines()
+            f.close()
+
+            for i in range(len(file_lines)):
+                file_lines[i] = file_lines[i].rstrip("\n").split(', ') #type:ignore
+
+            file_lines.remove(file_lines[0])
+            for i in range(len(file_lines)):
+                file_lines[i].remove(file_lines[i][0]) #type:ignore
+                for x in range(len(file_lines[i])):
+                    file_lines[i][x] = float(file_lines[i][x]) #type:ignore
+            for line in file_lines:
+                leftMotorA.spin(FORWARD, line[0], RPM)
+                leftMotorB.spin(FORWARD, line[1], RPM)
+                leftMotorC.spin(FORWARD, line[2], RPM)
+
+                rightMotorA.spin(FORWARD, line[3], RPM)
+                rightMotorB.spin(FORWARD, line[4], RPM)
+                rightMotorC.spin(FORWARD, line[5], RPM)
+                wait(25, MSEC)
 
     print("Time taken:", brain.timer.value(), "s")
 
@@ -536,31 +570,7 @@ def hold_buttons():
     This is where all the controls go that are simply 
     "if this button is actively pressed, do this"
     '''
-    # global front_wings_cooldown
-    # if front_wings_cooldown > 0: front_wings_cooldown -= 1
-    # if CONTROL_FRONT_WINGS.position() > 10 and front_wings_cooldown == 0:
-    #     if frontLeftWingPiston.value():
-    #         frontLeftWingPiston.set(False)
-    #         frontRightWingPiston.set(False)
-    #     else:
-    #         frontLeftWingPiston.set(True)
-    #         frontRightWingPiston.set(True)
-    #     front_wings_cooldown = 30
-    # print(front_wings_cooldown)
-    if CONTROL_FRONT_WINGS.position() > 10:
-        frontLeftWingPiston.set(True)
-        frontRightWingPiston.set(True)
-    else:
-        frontLeftWingPiston.set(False)
-        frontRightWingPiston.set(False)
-
-    if CONTROL_BACK_WINGS.position() < -10:
-        backLeftWingPiston.set(True)
-        backRightWingPiston.set(True)
-    else:
-        backLeftWingPiston.set(False)
-        backRightWingPiston.set(False)
-        
+    pass
 
 # Main threads
 def cosmetic_thread():
@@ -579,20 +589,13 @@ def control_thread():
     CONTROL_INTAKE_IN.pressed(intake)
     CONTROL_INTAKE_OUT.pressed(extake)
     CONTROL_CATA_TOGGLE.pressed(toggleCata)
-    # CONTROL_FRONT_WINGS.pressed(toggleFrontWings)
-    # CONTROL_BACK_WINGS.pressed(toggleBackWings)
-    CONTROL_BACK_LEFT_WING.pressed(backLeftWing) 
-    CONTROL_BACK_RIGHT_WING.pressed(backRightWing) 
-    CONTROL_FRONT_LEFT_WING.pressed(frontLeftWing)
-    CONTROL_FRONT_RIGHT_WING.pressed(frontRightWing)
+    CONTROL_FRONT_WINGS.pressed(toggleFrontWings)
+    CONTROL_BACK_WINGS.pressed(toggleBackWings)
 
     while True:
         # Convert controller axis to voltage levels
-        turnVolts = CONTROL_DRIVE_TURN_AXIS.position() * 0.12
-        # turnVolts = CONTROL_DRIVE_FORWARD_AXIS.position() * -0.12 * 0.75
+        turnVolts = (CONTROL_DRIVE_TURN_AXIS.position() * 0.12) * 0.9
         forwardVolts = CONTROL_DRIVE_FORWARD_AXIS.position() * 0.12
-        # if CONTROL_DRIVE_FORWARD_AXIS.position() > 90:
-        #     forwardVolts = CONTROL_DRIVE_FORWARD_AXIS.position() * -0.12 * 0.9
 
         # Spin motors and combine controller axes
         leftMotorA.spin(FORWARD, forwardVolts + turnVolts, VOLT)
@@ -602,7 +605,7 @@ def control_thread():
         rightMotorB.spin(FORWARD, forwardVolts - turnVolts, VOLT)
         rightMotorC.spin(FORWARD, forwardVolts - turnVolts, VOLT)
 
-        hold_buttons()
+        # hold_buttons()
 
         sleep(5)
 
