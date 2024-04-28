@@ -274,11 +274,13 @@ def auton():
 
             drivetrain.stop(HOLD)
             cataMotor.spin(FORWARD, 95)
-            wait(2, SECONDS) # normal 27
+            intakeMotor.spin(REVERSE, 75, PERCENT)
+            wait(27, SECONDS) # normal 27
             # while not cataLimit.pressing():
             #     cataMotor.spin(FORWARD, 25, PERCENT)
             cataMotor.stop(HOLD)
             drivetrain.stop(COAST)
+            intakeMotor.stop()
             wait(0.1, SECONDS)
 
             drivetrain.turn_to_heading(90, DEGREES, 40, PERCENT)
@@ -374,22 +376,24 @@ def auton():
             drivetrain.set_turn_constant(0.28)
             drivetrain.set_turn_threshold(0.25)
 
+            intakeMotor.spin(FORWARD, 100, PERCENT)
             cataMotor.spin(FORWARD, 100)
             wait(2,SECONDS)
             cataMotor.stop(COAST)
+            intakeMotor.stop()
 
             drivetrain.turn_for(RIGHT, 110, DEGREES, 10, PERCENT) # Turn right to setup to pull triball out of match load
             backRightWingPiston.set(True) # Lower wing to shove triball
             wait(0.3, SECONDS) # Wait for wing to lower
             drivetrain.turn_for(LEFT, 120, DEGREES, 30, PERCENT) # Turn to shove triball out of match load area
             backRightWingPiston.set(False) # Retract wing to not clip wall
-            wait(0.5, SECONDS) # Wait for wing retraction
+            wait(0.5, SECONDS) # Wait for wing retraction"?
             drivetrain.turn_to_heading(40, DEGREES)
             drivetrain.drive_for(FORWARD, 270, MM) # 
             drivetrain.turn_to_heading(30, DEGREES) # Turn to adjust for underpass
             intakeMotor.spin(REVERSE, 100, PERCENT)
-            drivetrain.drive_for(FORWARD, 600, MM) #
-            drivetrain.drive_for(FORWARD, 20, MM, 10, PERCENT)
+            drivetrain.drive_for(FORWARD, 600, MM) # final drive to touch elevation bar
+            drivetrain.drive_for(FORWARD, 30, MM, 20, PERCENT)
             wait(1, SECONDS)
             intakeMotor.stop()
 
@@ -402,9 +406,11 @@ def auton():
 
             # initial position is the back of the robot 3 in off the pipe
             # drive forwards and grab triball out of corner
+            intakeMotor.spin(REVERSE, 100, PERCENT)
             drivetrain.drive_for(FORWARD, 100, MM)
             backRightWingPiston.set(True)
             wait(.6, SECONDS)
+            intakeMotor.stop()
             intakeMotor.spin(REVERSE, 100, PERCENT)
             drivetrain.drive_for(FORWARD, 380, MM, 30, PERCENT)
             backRightWingPiston.set(False) 
@@ -412,9 +418,9 @@ def auton():
             intakeMotor.stop()
 
             drivetrain.turn_for(LEFT, 150, DEGREES)
-            drivetrain.drive_for(REVERSE, 600, MM, 100, PERCENT)
-            drivetrain.drive_for(FORWARD, 240, MM)
-            drivetrain.turn_to_heading(237, DEGREES) # Adjust
+            drivetrain.drive_for(REVERSE, 400, MM, 100, PERCENT)
+            drivetrain.drive_for(FORWARD, 260, MM)
+            drivetrain.turn_to_heading(240, DEGREES) # Adjust
             intakeMotor.spin(FORWARD, 100, PERCENT)
             drivetrain.drive_for(FORWARD, 1200, MM, 70, PERCENT)
             drivetrain.turn_to_heading(0, DEGREES)
@@ -422,12 +428,13 @@ def auton():
             drivetrain.drive_for(FORWARD, 300, MM, 50, PERCENT)
             drivetrain.turn_to_heading(272, DEGREES)
             intakeMotor.spin(FORWARD, 100, PERCENT)
-            drivetrain.drive_for(FORWARD, 400, MM, 60, PERCENT) # need to drive less to avoid hopping the bar
+            drivetrain.drive_for(FORWARD, 400, MM, 65, PERCENT) # need to drive less to avoid hopping the bar
+            drivetrain.set_turn_threshold(1.5)
             drivetrain.turn_to_heading(45, DEGREES)
             intakeMotor.spin(REVERSE, 100, PERCENT)
             frontLeftWingPiston.set(True)
             frontRightWingPiston.set(True)
-            drivetrain.drive_for(FORWARD, 1000, MM, 75, PERCENT)
+            drivetrain.drive_for(FORWARD, 1000, MM, 80, PERCENT)
             intakeMotor.stop()
             frontLeftWingPiston.set(False)
             frontRightWingPiston.set(False)
@@ -497,7 +504,7 @@ def auton():
 ###################################
 
 ### Press controls
-'''
+''':
 This area should include all button functions that are defined by a control tap
 Ex.
     def tap():
@@ -577,9 +584,22 @@ def cosmetic_thread():
     '''
     Handles all cosmetic / misc things for the drive control (brain screen animations, 
     LED control, etc.). 
-    Essentially if you disable this function the robot will still work fine.
+    If you disable this function the robot will still work fine.
     '''
-    pass
+    if brain.sdcard.is_inserted():
+        index = 1  
+        while True:
+            wait(20, MSEC)
+
+            brain.screen.clear_screen()
+            brain.screen.draw_image_from_file(("gif/fractal (" + str(index) + ").png"), 0, 0)
+
+            if index < 60:
+                index += 1
+            else:
+                index = 1
+
+            brain.screen.render()
 
 def control_thread():
     '''

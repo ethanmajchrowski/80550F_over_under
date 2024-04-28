@@ -201,9 +201,22 @@ def cosmetic_thread():
     '''
     Handles all cosmetic / misc things for the drive control (brain screen animations, 
     LED control, etc.). 
-    Essentially if you disable this function the robot will still work fine.
+    If you disable this function the robot will still work fine.
     '''
-    pass
+    if brain.sdcard.is_inserted():
+        index = 1  
+        while True:
+            wait(20, MSEC)
+
+            brain.screen.clear_screen()
+            brain.screen.draw_image_from_file(("gif/fractal (" + str(index) + ").png"), 0, 0)
+
+            if index < 60:
+                index += 1
+            else:
+                index = 1
+
+            brain.screen.render()
 
 def control_thread():
     '''
